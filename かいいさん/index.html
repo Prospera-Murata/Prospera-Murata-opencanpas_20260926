@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>あつまれ！ミニアイランド 3D - Ultimate Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap');
+
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background-color: #fdf4ff;
+            color: #4a044e;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        .cute-card {
+            background: rgba(255, 245, 252, 0.95);
+            backdrop-filter: blur(12px);
+            border: 4px solid #f472b6;
+            border-radius: 28px;
+            box-shadow: 0 10px 30px -5px rgba(244, 114, 182, 0.3), inset 0 2px 6px rgba(255, 255, 255, 0.9);
+        }
+
+        .btn-cute-green {
+            background: linear-gradient(135deg, #a7f3d0 0%, #34d399 100%);
+            border: 3px solid #059669;
+            box-shadow: 0 4px 0 #047857;
+            transition: all 0.1s ease;
+        }
+
+        .btn-cute-green:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #047857;
+        }
+
+        .btn-cute-pink {
+            background: linear-gradient(135deg, #fbcfe8 0%, #f472b6 100%);
+            border: 3px solid #db2777;
+            box-shadow: 0 4px 0 #be185d;
+            transition: all 0.1s ease;
+        }
+
+        .btn-cute-pink:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #be185d;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #fce7f3;
+            border-radius: 10px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #f472b6;
+            border-radius: 10px;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #joystick-zone {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            width: 130px;
+            height: 130px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 4px solid rgba(244, 114, 182, 0.6);
+            border-radius: 50%;
+            z-index: 20;
+            backdrop-filter: blur(6px);
+            touch-action: none;
+        }
+
+        #joystick-knob {
+            position: absolute;
+            top: 37px;
+            left: 37px;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #f472b6 0%, #db2777 100%);
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-anim { animation: pulse-ring 2s infinite ease-in-out; }
+    </style>
+</head>
+<body class="w-screen h-screen overflow-hidden select-none">
+
+    <div id="canvas-container"></div>
+
+    <!-- TOUCH JOYSTICK -->
+    <div id="joystick-zone" class="block sm:hidden">
+        <div id="joystick-knob"></div>
+    </div>
+
+    <!-- TOP HUD OVERLAY -->
+    <div id="hud" class="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-10">
+        <div class="flex flex-col gap-2 pointer-events-auto">
+            <div class="cute-card px-4 py-2 flex items-center gap-3 border-pink-400">
+                <span id="hud-clock-icon" class="text-2xl animate-spin" style="animation-duration: 10s;">🌸</span>
+                <div class="flex flex-col">
+                    <span id="hud-time" class="text-sm font-black text-pink-900 tracking-wide">12:00</span>
+                    <span id="hud-weather" class="text-xs font-bold text-pink-700">さくら舞う春</span>
+                </div>
+            </div>
+
+            <div class="cute-card px-4 py-1.5 flex items-center gap-2 border-pink-400">
+                <span class="text-xl">✨</span>
+                <span id="hud-bells" class="text-base font-black text-pink-900">4,500 ベル</span>
+            </div>
+        </div>
+
+        <div class="flex gap-2 pointer-events-auto flex-wrap justify-end">
+            <button id="btn-customize" class="btn-cute-pink px-3.5 py-2.5 rounded-2xl text-white font-black text-xs sm:text-sm">🎀 コーデ</button>
+            <button id="btn-inventory" class="btn-cute-pink px-3.5 py-2.5 rounded-2xl text-white font-black text-xs sm:text-sm">🎒 もちもの</button>
+            <button id="btn-craft" class="btn-cute-green px-3.5 py-2.5 rounded-2xl text-white font-black text-xs sm:text-sm">🔨 DIY</button>
+            <button id="btn-book" class="btn-cute-green px-3.5 py-2.5 rounded-2xl text-white font-black text-xs sm:text-sm">📖 ずかん</button>
+        </div>
+    </div>
+
+    <!-- QUICK TOOLBAR (BOTTOM CENTER) -->
+    <div class="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 cute-card p-2 border-pink-300 z-10 pointer-events-auto flex-wrap justify-center max-w-[90vw]">
+        <button class="tool-btn w-11 h-11 rounded-2xl bg-pink-300 border-2 border-pink-600 text-xl flex items-center justify-center hover:bg-pink-200 transition" data-tool="hand" title="てぶら">✋</button>
+        <button class="tool-btn w-11 h-11 rounded-2xl bg-pink-50 border-2 border-pink-300 text-xl flex items-center justify-center hover:bg-pink-200 transition" data-tool="rod" title="つりざお">🎣</button>
+        <button class="tool-btn w-11 h-11 rounded-2xl bg-pink-50 border-2 border-pink-300 text-xl flex items-center justify-center hover:bg-pink-200 transition" data-tool="net" title="あみ">🦋</button>
+        <button class="tool-btn w-11 h-11 rounded-2xl bg-pink-50 border-2 border-pink-300 text-xl flex items-center justify-center hover:bg-pink-200 transition" data-tool="shovel" title="スコップ">🪵</button>
+        <button class="tool-btn w-11 h-11 rounded-2xl bg-pink-50 border-2 border-pink-300 text-xl flex items-center justify-center hover:bg-pink-200 transition" data-tool="hoe" title="くわ(畑)">🌾</button>
+        <button class="tool-btn w-11 h-11 rounded-2xl bg-pink-50 border-2 border-pink-300 text-xl flex items-center justify-center hover:bg-pink-200 transition" data-tool="seed" title="種まき">🌱</button>
+        <button class="tool-btn w-11 h-11 rounded-2xl bg-pink-50 border-2 border-pink-300 text-xl flex items-center justify-center hover:bg-pink-200 transition" data-tool="path" title="タイル">🧱</button>
+        <button class="tool-btn w-11 h-11 rounded-2xl bg-pink-50 border-2 border-pink-300 text-xl flex items-center justify-center hover:bg-pink-200 transition" data-tool="fence" title="フェンス">🏡</button>
+    </div>
+
+    <!-- ACTION BUTTON -->
+    <button id="btn-action" class="absolute bottom-6 right-6 w-20 h-20 rounded-full bg-gradient-to-tr from-pink-400 to-purple-400 border-4 border-white text-white font-black text-2xl shadow-2xl flex items-center justify-center active:scale-95 z-20 pointer-events-auto">
+        A
+    </button>
+
+    <!-- FISHING / BUG MINI-GAME OVERLAY -->
+    <div id="minigame-overlay" class="absolute inset-0 bg-pink-950/50 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden pointer-events-auto">
+        <div class="cute-card w-full max-w-sm p-6 flex flex-col items-center text-center">
+            <h3 id="minigame-title" class="text-xl font-black text-pink-900 mb-3">🎣 釣りチャレンジ中！</h3>
+            <p id="minigame-desc" class="text-xs font-bold text-pink-700 mb-6">マーカーが緑のエリアにある時に「タイミング！」ボタンを押してね！</p>
+            
+            <div class="w-full bg-pink-200 h-8 rounded-full relative overflow-hidden border-2 border-pink-400 mb-6">
+                <div id="minigame-target" class="absolute top-0 bottom-0 bg-emerald-400 opacity-60 rounded-full" style="left: 40%; width: 25%;"></div>
+                <div id="minigame-marker" class="absolute top-0 bottom-0 w-3 bg-pink-600 rounded-full shadow-lg" style="left: 0%;"></div>
+            </div>
+
+            <button id="btn-timing" class="btn-cute-green w-full py-3.5 rounded-2xl text-white font-black text-lg shadow-xl">
+                ✨ タイミング！ (A)
+            </button>
+        </div>
+    </div>
+
+    <!-- CUSTOMIZATION MODAL -->
+    <div id="modal-customize" class="absolute inset-0 bg-pink-950/40 backdrop-blur-md z-40 flex items-center justify-center p-4 hidden pointer-events-auto">
+        <div class="cute-card w-full max-w-md p-5 flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center border-b-2 border-pink-200 pb-3 mb-3">
+                <h2 class="text-xl font-black text-pink-900 flex items-center gap-2">🎀 ちびキャラコーデ</h2>
+                <button id="close-customize" class="text-pink-800 text-2xl font-black hover:text-pink-600">✕</button>
+            </div>
+            <div class="flex flex-col gap-4 overflow-y-auto custom-scroll pr-1">
+                <div>
+                    <label class="text-xs font-black text-pink-900 mb-1 block">みみ（ヘッドウェア）</label>
+                    <div class="flex gap-3">
+                        <button onclick="setEars('cat')" class="px-4 py-2 rounded-2xl bg-pink-200 text-pink-950 font-black text-xs border-2 border-pink-400 shadow">🐱 ネコミミ</button>
+                        <button onclick="setEars('bunny')" class="px-4 py-2 rounded-2xl bg-pink-200 text-pink-950 font-black text-xs border-2 border-pink-400 shadow">🐰 ウサミミ</button>
+                        <button onclick="setEars('none')" class="px-4 py-2 rounded-2xl bg-pink-200 text-pink-950 font-black text-xs border-2 border-pink-400 shadow">✨ なし</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-black text-pink-900 mb-1 block">パステルパーカー（カラー）</label>
+                    <div class="flex gap-2">
+                        <button onclick="setHoodieColor(0xf472b6)" class="w-10 h-10 rounded-full bg-pink-400 border-2 border-white shadow"></button>
+                        <button onclick="setHoodieColor(0x93c5fd)" class="w-10 h-10 rounded-full bg-blue-300 border-2 border-white shadow"></button>
+                        <button onclick="setHoodieColor(0xa7f3d0)" class="w-10 h-10 rounded-full bg-emerald-300 border-2 border-white shadow"></button>
+                        <button onclick="setHoodieColor(0xfde68a)" class="w-10 h-10 rounded-full bg-yellow-200 border-2 border-white shadow"></button>
+                        <button onclick="setHoodieColor(0xc4b5fd)" class="w-10 h-10 rounded-full bg-purple-300 border-2 border-white shadow"></button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-black text-pink-900 mb-1 block">ヘアカラー (髪色)</label>
+                    <div class="flex gap-2">
+                        <button onclick="setHairColor(0x52271c)" class="w-10 h-10 rounded-full bg-[#52271c] border-2 border-white shadow"></button>
+                        <button onclick="setHairColor(0xfcd34d)" class="w-10 h-10 rounded-full bg-yellow-300 border-2 border-white shadow"></button>
+                        <button onclick="setHairColor(0xf472b6)" class="w-10 h-10 rounded-full bg-pink-400 border-2 border-white shadow"></button>
+                        <button onclick="setHairColor(0x60a5fa)" class="w-10 h-10 rounded-full bg-blue-400 border-2 border-white shadow"></button>
+                        <button onclick="setHairColor(0xffffff)" class="w-10 h-10 rounded-full bg-white border-2 border-pink-300 shadow"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INVENTORY & CRAFT WORKSHOP MODAL -->
+    <div id="modal-inventory" class="absolute inset-0 bg-pink-950/40 backdrop-blur-md z-40 flex items-center justify-center p-4 hidden pointer-events-auto">
+        <div class="cute-card w-full max-w-md p-5 flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center border-b-2 border-pink-200 pb-3 mb-3">
+                <h2 class="text-xl font-black text-pink-900 flex items-center gap-2">🎒 もちもの</h2>
+                <button id="close-inventory" class="text-pink-800 text-2xl font-black hover:text-pink-600">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scroll pr-1">
+                <div id="inventory-grid" class="grid grid-cols-4 gap-2.5"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-craft" class="absolute inset-0 bg-pink-950/40 backdrop-blur-md z-40 flex items-center justify-center p-4 hidden pointer-events-auto">
+        <div class="cute-card w-full max-w-md p-5 flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center border-b-2 border-pink-200 pb-3 mb-3">
+                <h2 class="text-xl font-black text-pink-900 flex items-center gap-2">🔨 DIY クラフトワークショップ</h2>
+                <button id="close-craft" class="text-pink-800 text-2xl font-black hover:text-pink-600">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scroll pr-1">
+                <div id="craft-list" class="flex flex-col gap-2.5"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CRITTERPEDIA & MUSEUM DONATION MODAL -->
+    <div id="modal-book" class="absolute inset-0 bg-pink-950/40 backdrop-blur-md z-40 flex items-center justify-center p-4 hidden pointer-events-auto">
+        <div class="cute-card w-full max-w-lg p-5 flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center border-b-2 border-pink-200 pb-3 mb-3">
+                <h2 class="text-xl font-black text-pink-900 flex items-center gap-2">📖 ずかん ＆ 博物館</h2>
+                <button id="close-book" class="text-pink-800 text-2xl font-black hover:text-pink-600">✕</button>
+            </div>
+            <div class="flex gap-2 mb-3">
+                <button onclick="switchBookTab('pedia')" class="flex-1 py-2 rounded-xl font-black text-xs bg-pink-400 text-white">ずかん一覧</button>
+                <button onclick="switchBookTab('museum')" class="flex-1 py-2 rounded-xl font-black text-xs bg-pink-100 text-pink-800">🏛️ 博物館に寄贈</button>
+            </div>
+            <div id="book-grid" class="flex-1 overflow-y-auto custom-scroll grid grid-cols-3 gap-3 p-1"></div>
+        </div>
+    </div>
+
+    <!-- SHOP MODAL -->
+    <div id="modal-shop" class="absolute inset-0 bg-pink-950/40 backdrop-blur-md z-40 flex items-center justify-center p-4 hidden pointer-events-auto">
+        <div class="cute-card w-full max-w-md p-5 flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center border-b-2 border-pink-200 pb-3 mb-3">
+                <h2 class="text-xl font-black text-pink-900 flex items-center gap-2">🏪 たぬき商店（売買）</h2>
+                <button id="close-shop" class="text-pink-800 text-2xl font-black hover:text-pink-600">✕</button>
+            </div>
+            <div id="shop-content" class="flex-1 overflow-y-auto custom-scroll flex flex-col gap-2"></div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="absolute top-20 left-1/2 -translate-x-1/2 cute-card px-5 py-2.5 border-pink-400 flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-300 transform -translate-y-4 z-50">
+        <span id="toast-icon" class="text-2xl">✨</span>
+        <span id="toast-msg" class="text-sm font-black text-pink-900">ゲット！</span>
+    </div>
+
+    <!-- START SCREEN -->
+    <div id="start-screen" class="absolute inset-0 bg-gradient-to-br from-pink-400 via-purple-400 to-pink-300 backdrop-blur-lg z-50 flex flex-col items-center justify-center p-6 text-center pointer-events-auto">
+        <div class="w-28 h-28 rounded-full bg-white border-4 border-pink-200 flex items-center justify-center text-6xl mb-4 shadow-2xl animate-bounce">
+            🐰
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-black text-white tracking-wider drop-shadow-lg mb-2">
+            あつまれ！ミニアイランド 3D
+        </h1>
+        <p class="text-pink-100 text-sm sm:text-base font-bold max-w-sm mb-6 drop-shadow">
+            究極のスローライフ！DIYクラフト、釣り大会ミニゲーム、農園＆博物館フル体験を満喫しよう！
+        </p>
+        <button id="btn-start" class="btn-cute-green px-8 py-4 rounded-2xl text-xl font-black text-white shadow-2xl hover:scale-105 transition">
+            かわいい島へお出かけする！
+        </button>
+    </div>
+
+    <script>
+        class SoundEngine {
+            constructor() { this.ctx = null; }
+            init() {
+                if (!this.ctx) {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AC();
+                }
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            }
+            playPop(freq = 600) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.12);
+            }
+            playCatch() {
+                if (!this.ctx) return;
+                const notes = [587.33, 739.99, 880.00, 1174.66];
+                notes.forEach((f, i) => {
+                    setTimeout(() => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(f, this.ctx.currentTime);
+                        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+                        osc.connect(gain); gain.connect(this.ctx.destination);
+                        osc.start(); osc.stop(this.ctx.currentTime + 0.25);
+                    }, i * 75);
+                });
+            }
+            playSplash() {
+                if (!this.ctx) return;
+                const dur = 0.3;
+                const bufSize = this.ctx.sampleRate * dur;
+                const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+                const data = buf.getChannelData(0);
+                for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+                const src = this.ctx.createBufferSource();
+                src.buffer = buf;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass'; filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+                src.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+                src.start();
+            }
+            playBell() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1046.50, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.4);
+            }
+        }
+
+        const audio = new SoundEngine();
+
+        const ITEMS_DB = {
+            apple: { name: 'パステルリンゴ', icon: '🍎', price: 120, category: 'fruit' },
+            wood: { name: 'ピンクのもくざい', icon: '🪵', price: 50, category: 'material' },
+            stone: { name: 'きらきらストーン', icon: '💎', price: 80, category: 'material' },
+            
+            seed_carrot: { name: 'にんじんのタネ', icon: '🌱', price: 40, category: 'seed', cropType: 'carrot' },
+            seed_tomato: { name: 'トマトのタネ', icon: '🌱', price: 50, category: 'seed', cropType: 'tomato' },
+            seed_pumpkin: { name: 'カボチャのタネ', icon: '🌱', price: 70, category: 'seed', cropType: 'pumpkin' },
+
+            crop_carrot: { name: 'あまいにんじん', icon: '🥕', price: 160, category: 'crop' },
+            crop_tomato: { name: 'ジューシートマト', icon: '🍅', price: 210, category: 'crop' },
+            crop_pumpkin: { name: 'ホリデーカボチャ', icon: '🎃', price: 320, category: 'crop' },
+
+            fish_small: { name: 'ピンクタイ', icon: '🐟', price: 180, category: 'fish', size: 'small' },
+            fish_large: { name: 'アイランドコイ', icon: '🐠', price: 450, category: 'fish', size: 'large' },
+            fish_salmon: { name: 'パステルサーモン', icon: '🍣', price: 320, category: 'fish', size: 'medium' },
+            fish_clown: { name: 'カクレクマノミ', icon: '🐡', price: 380, category: 'fish', size: 'small' },
+            fish_tuna: { name: '巨大ホシマグロ', icon: '🦈', price: 1500, category: 'fish', size: 'xlarge' },
+
+            bug_butterfly: { name: 'パステルちょうちょ', icon: '🦋', price: 140, category: 'bug' },
+            bug_beetle: { name: 'ほしぞらカブト', icon: '🪲', price: 550, category: 'bug' },
+            fossil: { name: 'パステルかせき', icon: '🦴', price: 1200, category: 'fossil' },
+
+            chair: { name: 'くまさんベンチ', icon: '🪑', price: 350, category: 'furniture' },
+            lamp: { name: 'ほしのおきがたライト', icon: '🏮', price: 300, category: 'furniture' },
+            table: { name: 'リボンテーブル', icon: '🪵', price: 500, category: 'furniture' },
+            path_tile: { name: 'パステルタイル', icon: '🧱', price: 60, category: 'path' },
+            fence_item: { name: 'しろいウッドフェンス', icon: '🏡', price: 120, category: 'fence' }
+        };
+
+        const CRAFT_RECIPES = [
+            { id: 'seed_carrot', name: 'にんじんのタネ (x3)', icon: '🌱', req: { wood: 1 }, count: 3 },
+            { id: 'seed_tomato', name: 'トマトのタネ (x3)', icon: '🌱', req: { wood: 1, stone: 1 }, count: 3 },
+            { id: 'seed_pumpkin', name: 'カボチャのタネ (x2)', icon: '🌱', req: { stone: 2 }, count: 2 },
+            { id: 'chair', name: 'くまさんベンチ', icon: '🪑', req: { wood: 3 } },
+            { id: 'lamp', name: 'ほしのおきがたライト', icon: '🏮', req: { wood: 2, stone: 1 } },
+            { id: 'table', name: 'リボンテーブル', icon: '🪵', req: { wood: 6 } },
+            { id: 'path_tile', name: 'パステルタイル (x5)', icon: '🧱', req: { stone: 3 }, count: 5 },
+            { id: 'fence_item', name: 'しろいウッドフェンス (x3)', icon: '🏡', req: { wood: 4 }, count: 3 }
+        ];
+
+        let playerState = {
+            bells: 5200,
+            activeTool: 'hand',
+            hairColor: 0x52271c,
+            hoodieColor: 0xf472b6,
+            earsType: 'bunny',
+            inventory: [
+                { id: 'apple', count: 5 },
+                { id: 'wood', count: 15 },
+                { id: 'stone', count: 10 },
+                { id: 'seed_carrot', count: 5 },
+                { id: 'path_tile', count: 10 },
+                { id: 'fence_item', count: 6 }
+            ],
+            critterpedia: {},
+            museumDonations: {}
+        };
+
+        let gameTime = 12 * 60;
+        let inInterior = false;
+
+        let scene, camera, renderer;
+        let sunLight, ambientLight;
+        let playerGroup;
+        let chibiHead, leftArm, rightArm, leftLeg, rightLeg;
+        let islandMesh, oceanMesh;
+        let worldObjects = [];
+        let trees = [], rocks = [], fossils = [], fishes = [], bugs = [], paths = [], fences = [];
+        let farmPlots = [];
+        let interiorObjects = [];
+
+        let keys = {};
+        let joystickVector = { x: 0, y: 0 };
+        let minigameActive = false;
+        let minigameData = { type: null, targetEntity: null, markerPos: 0, markerDir: 1, targetMin: 35, targetMax: 65 };
+
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xfbcfe8);
+            scene.fog = new THREE.FogExp2(0xfbcfe8, 0.012);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 20, 26);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+            scene.add(ambientLight);
+
+            sunLight = new THREE.DirectionalLight(0xfff5f5, 1.1);
+            sunLight.position.set(25, 45, 25);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            scene.add(sunLight);
+
+            createIslandWorld();
+            createChibiPlayerCharacter();
+            createBuildings();
+            spawnEntities();
+            createFarmPlots();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createIslandWorld() {
+            const islandGeo = new THREE.CylinderGeometry(28, 32, 4, 32);
+            const islandMat = new THREE.MeshStandardMaterial({ color: 0x86efac, roughness: 0.8 });
+            islandMesh = new THREE.Mesh(islandGeo, islandMat);
+            islandMesh.position.y = -1.8;
+            islandMesh.receiveShadow = true;
+            scene.add(islandMesh);
+
+            const oceanGeo = new THREE.PlaneGeometry(400, 400);
+            const oceanMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.1, transparent: true, opacity: 0.8 });
+            oceanMesh = new THREE.Mesh(oceanGeo, oceanMat);
+            oceanMesh.rotation.x = -Math.PI / 2;
+            oceanMesh.position.y = -2.2;
+            scene.add(oceanMesh);
+        }
+
+        function createBuildings() {
+            createBuildingMesh(10, 0, -10, 0xf472b6, 0xfff1f2, 'player_house', '🏠 パステルハウス');
+            createBuildingMesh(-12, 0, -10, 0x60a5fa, 0xf0fdf4, 'museum', '🏛️ パステルはくぶつかん');
+            createBuildingMesh(-8, 0, 9, 0xfbbf24, 0xfefce8, 'shop', '🏪 たぬき商店');
+        }
+
+        function createBuildingMesh(x, y, z, roofHex, wallHex, type, label) {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(5.5, 3.8, 4.5), new THREE.MeshStandardMaterial({ color: wallHex, roughness: 0.7 }));
+            body.position.y = 1.9; body.castShadow = true; body.receiveShadow = true;
+            group.add(body);
+
+            const roof = new THREE.Mesh(new THREE.ConeGeometry(4.8, 2.8, 4), new THREE.MeshStandardMaterial({ color: roofHex, roughness: 0.5 }));
+            roof.position.y = 4.8; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
+            group.add(roof);
+
+            const door = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.2, 0.2), new THREE.MeshStandardMaterial({ color: 0x92400e }));
+            door.position.set(0, 1.1, 2.3);
+            group.add(door);
+
+            group.position.set(x, y, z);
+            group.userData = { type: type, label: label };
+            scene.add(group);
+            worldObjects.push(group);
+        }
+
+        function createFarmPlots() {
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                    let px = -6 + c * 1.8;
+                    let pz = 4 + r * 1.8;
+                    const plotGeo = new THREE.BoxGeometry(1.5, 0.1, 1.5);
+                    const plotMat = new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 0.9 });
+                    const plotMesh = new THREE.Mesh(plotGeo, plotMat);
+                    plotMesh.position.set(px, 0.05, pz);
+                    plotMesh.receiveShadow = true;
+                    scene.add(plotMesh);
+
+                    farmPlots.push({
+                        mesh: plotMesh,
+                        x: px,
+                        z: pz,
+                        state: 'empty',
+                        cropType: null,
+                        growthProgress: 0,
+                        cropMesh: null
+                    });
+                }
+            }
+        }
+
+        function createChibiPlayerCharacter() {
+            playerGroup = new THREE.Group();
+            rebuildChibiModel();
+            playerGroup.position.set(0, 0, 0);
+            scene.add(playerGroup);
+        }
+
+        function rebuildChibiModel() {
+            while(playerGroup.children.length > 0) { playerGroup.remove(playerGroup.children[0]); }
+
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffedd5, roughness: 0.5 });
+            const hoodieMat = new THREE.MeshStandardMaterial({ color: playerState.hoodieColor, roughness: 0.5 });
+            const hairMat = new THREE.MeshStandardMaterial({ color: playerState.hairColor, roughness: 0.4 });
+            const shoeMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.4 });
+
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.55, 12), hoodieMat);
+            torso.position.y = 0.65;
+            torso.castShadow = true;
+            playerGroup.add(torso);
+
+            const ribbon = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.1), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            ribbon.position.set(0, 0.88, 0.28);
+            playerGroup.add(ribbon);
+
+            chibiHead = new THREE.Group();
+            const headSphere = new THREE.Mesh(new THREE.SphereGeometry(0.65, 24, 24), skinMat);
+            headSphere.scale.set(1, 0.95, 1);
+            headSphere.position.y = 1.45;
+            headSphere.castShadow = true;
+            chibiHead.add(headSphere);
+
+            const eyeGeo = new THREE.SphereGeometry(0.08, 12, 12);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1e1b4b });
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(0.22, 1.48, 0.56);
+            const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(-0.22, 1.48, 0.56);
+            chibiHead.add(eyeL); chibiHead.add(eyeR);
+
+            const blushMat = new THREE.MeshBasicMaterial({ color: 0xfbcfe8, transparent: true, opacity: 0.8 });
+            const blushGeo = new THREE.SphereGeometry(0.09, 8, 8);
+            const blushL = new THREE.Mesh(blushGeo, blushMat); blushL.position.set(0.34, 1.35, 0.52);
+            const blushR = new THREE.Mesh(blushGeo, blushMat); blushR.position.set(-0.34, 1.35, 0.52);
+            chibiHead.add(blushL); chibiHead.add(blushR);
+
+            const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.68, 16, 16), hairMat);
+            hairTop.scale.set(1.02, 0.65, 1.05);
+            hairTop.position.set(0, 1.65, -0.02);
+            chibiHead.add(hairTop);
+
+            if (playerState.earsType === 'cat') {
+                const earGeo = new THREE.ConeGeometry(0.18, 0.35, 8);
+                const earL = new THREE.Mesh(earGeo, hairMat); earL.position.set(0.35, 2.1, 0); earL.rotation.z = -0.2;
+                const earR = new THREE.Mesh(earGeo, hairMat); earR.position.set(-0.35, 2.1, 0); earR.rotation.z = 0.2;
+                chibiHead.add(earL); chibiHead.add(earR);
+            } else if (playerState.earsType === 'bunny') {
+                const earGeo = new THREE.CylinderGeometry(0.08, 0.12, 0.5, 10);
+                const earL = new THREE.Mesh(earGeo, hairMat); earL.position.set(0.25, 2.2, 0); earL.rotation.z = -0.1;
+                const earR = new THREE.Mesh(earGeo, hairMat); earR.position.set(-0.25, 2.2, 0); earR.rotation.z = 0.1;
+                chibiHead.add(earL); chibiHead.add(earR);
+            }
+
+            playerGroup.add(chibiHead);
+
+            leftArm = new THREE.Group();
+            const lArmMesh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), hoodieMat);
+            lArmMesh.position.y = -0.15;
+            leftArm.add(lArmMesh);
+            leftArm.position.set(0.38, 0.75, 0);
+            playerGroup.add(leftArm);
+
+            rightArm = new THREE.Group();
+            const rArmMesh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), hoodieMat);
+            rArmMesh.position.y = -0.15;
+            rightArm.add(rArmMesh);
+            rightArm.position.set(-0.38, 0.75, 0);
+            playerGroup.add(rightArm);
+
+            leftLeg = new THREE.Group();
+            const lLegMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 8), skinMat);
+            lLegMesh.position.y = -0.18;
+            leftLeg.add(lLegMesh);
+            const lShoe = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.22), shoeMat);
+            lShoe.position.set(0, -0.38, 0.04);
+            leftLeg.add(lShoe);
+            leftLeg.position.set(0.16, 0.38, 0);
+            playerGroup.add(leftLeg);
+
+            rightLeg = new THREE.Group();
+            const rLegMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 8), skinMat);
+            rLegMesh.position.y = -0.18;
+            rightLeg.add(rLegMesh);
+            const rShoe = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.22), shoeMat);
+            rShoe.position.set(0, -0.38, 0.04);
+            rightLeg.add(rShoe);
+            rightLeg.position.set(-0.16, 0.38, 0);
+            playerGroup.add(rightLeg);
+        }
+
+        function spawnEntities() {
+            for (let i = 0; i < 14; i++) {
+                let ang = Math.random() * Math.PI * 2;
+                let rad = 6 + Math.random() * 18;
+                createTree(Math.cos(ang) * rad, Math.sin(ang) * rad);
+            }
+            for (let i = 0; i < 6; i++) {
+                let ang = Math.random() * Math.PI * 2;
+                let rad = 8 + Math.random() * 15;
+                createRock(Math.cos(ang) * rad, Math.sin(ang) * rad);
+            }
+            for (let i = 0; i < 4; i++) {
+                let ang = Math.random() * Math.PI * 2;
+                let rad = 6 + Math.random() * 15;
+                createFossilSpot(Math.cos(ang) * rad, Math.sin(ang) * rad);
+            }
+            spawnFishes();
+            spawnBugs();
+        }
+
+        function createTree(x, z) {
+            const treeGroup = new THREE.Group();
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, 2.2, 8), new THREE.MeshStandardMaterial({ color: 0xb45309 }));
+            trunk.position.y = 1.1; trunk.castShadow = true;
+            treeGroup.add(trunk);
+
+            const leaf = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5), new THREE.MeshStandardMaterial({ color: 0x4ade80 }));
+            leaf.position.y = 2.6; leaf.castShadow = true;
+            treeGroup.add(leaf);
+
+            const apple = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshStandardMaterial({ color: 0xf43f5e }));
+            apple.position.set(0.7, 2.4, 0.7);
+            treeGroup.add(apple);
+
+            treeGroup.position.set(x, 0, z);
+            treeGroup.userData = { type: 'tree', hasFruit: true, fruitMesh: apple };
+            scene.add(treeGroup);
+            trees.push(treeGroup);
+        }
+
+        function createRock(x, z) {
+            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8), new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.6 }));
+            rock.position.set(x, 0.4, z);
+            rock.scale.set(1, 0.65, 1);
+            rock.castShadow = true;
+            rock.userData = { type: 'rock' };
+            scene.add(rock);
+            rocks.push(rock);
+        }
+
+        function createFossilSpot(x, z) {
+            const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.28), new THREE.MeshBasicMaterial({ color: 0xfde047, wireframe: true }));
+            star.position.set(x, 0.1, z);
+            star.userData = { type: 'fossil' };
+            scene.add(star);
+            fossils.push(star);
+        }
+
+        function spawnFishes() {
+            fishes.forEach(f => {
+                scene.remove(f.mesh);
+                if (f.shadowMesh) scene.remove(f.shadowMesh);
+            });
+            fishes = [];
+
+            const fishTypes = ['fish_small', 'fish_large', 'fish_salmon', 'fish_clown', 'fish_tuna'];
+
+            for (let i = 0; i < 10; i++) {
+                let ang = Math.random() * Math.PI * 2;
+                let rad = 24 + Math.random() * 6;
+                let type = fishTypes[Math.floor(Math.random() * fishTypes.length)];
+                let db = ITEMS_DB[type];
+
+                let scale = db.size === 'xlarge' ? 1.6 : (db.size === 'medium' ? 1.0 : 0.7);
+
+                const mesh = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.35 * scale, 0.9 * scale, 8),
+                    new THREE.MeshStandardMaterial({ color: db.size === 'xlarge' ? 0x1e293b : (db.size === 'medium' ? 0xf43f5e : 0xf472b6), roughness: 0.3 })
+                );
+                mesh.rotation.x = Math.PI / 2;
+                mesh.position.set(Math.cos(ang) * rad, -2.0, Math.sin(ang) * rad);
+                scene.add(mesh);
+
+                const shadowMesh = new THREE.Mesh(
+                    new THREE.RingGeometry(0.2 * scale, 0.5 * scale, 12),
+                    new THREE.MeshBasicMaterial({ color: 0x01579b, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+                );
+                shadowMesh.rotation.x = -Math.PI / 2;
+                shadowMesh.position.set(mesh.position.x, -2.15, mesh.position.z);
+                scene.add(shadowMesh);
+
+                fishes.push({
+                    mesh: mesh,
+                    shadowMesh: shadowMesh,
+                    type: type,
+                    angle: ang,
+                    radius: rad,
+                    speed: 0.008 + Math.random() * 0.012
+                });
+            }
+        }
+
+        function spawnBugs() {
+            bugs.forEach(b => scene.remove(b.mesh));
+            bugs = [];
+            for (let i = 0; i < 6; i++) {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.28), new THREE.MeshBasicMaterial({ color: 0xf43f5e }));
+                mesh.position.set((Math.random() - 0.5) * 26, 1.3, (Math.random() - 0.5) * 26);
+                scene.add(mesh);
+                bugs.push({ mesh: mesh, type: Math.random() < 0.7 ? 'bug_butterfly' : 'bug_beetle', vx: (Math.random() - 0.5) * 0.04, vz: (Math.random() - 0.5) * 0.04 });
+            }
+        }
+
+        window.addEventListener('keydown', e => { keys[e.key] = true; if (e.key === ' ' || e.key === 'Enter') performAction(); });
+        window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+        const joystickZone = document.getElementById('joystick-zone');
+        const joystickKnob = document.getElementById('joystick-knob');
+        let touchId = null;
+
+        joystickZone.addEventListener('touchstart', e => {
+            const touch = e.changedTouches[0];
+            touchId = touch.identifier;
+            updateJoystick(touch);
+        });
+        window.addEventListener('touchmove', e => {
+            if (touchId !== null) {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === touchId) updateJoystick(e.changedTouches[i]);
+                }
+            }
+        });
+        window.addEventListener('touchend', e => {
+            if (touchId !== null) {
+                touchId = null;
+                joystickVector = { x: 0, y: 0 };
+                joystickKnob.style.transform = `translate(0px, 0px)`;
+            }
+        });
+
+        function updateJoystick(touch) {
+            const rect = joystickZone.getBoundingClientRect();
+            let dx = touch.clientX - (rect.left + rect.width / 2);
+            let dy = touch.clientY - (rect.top + rect.height / 2);
+            const dist = Math.hypot(dx, dy);
+            const maxDist = 42;
+            if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
+            joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            joystickVector = { x: dx / maxDist, y: dy / maxDist };
+        }
+
+        let clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            if (minigameActive) {
+                minigameData.markerPos += minigameData.markerDir * delta * 85;
+                if (minigameData.markerPos > 100 || minigameData.markerPos < 0) minigameData.markerDir *= -1;
+                document.getElementById('minigame-marker').style.left = `${minigameData.markerPos}%`;
+                renderer.render(scene, camera);
+                return;
+            }
+
+            let moveX = 0, moveZ = 0;
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) moveX -= 1;
+            if (keys['ArrowRight'] || keys['d'] || keys['D']) moveX += 1;
+            if (keys['ArrowUp'] || keys['w'] || keys['W']) moveZ -= 1;
+            if (keys['ArrowDown'] || keys['s'] || keys['S']) moveZ += 1;
+            if (joystickVector.x !== 0 || joystickVector.y !== 0) { moveX = joystickVector.x; moveZ = joystickVector.y; }
+
+            if (moveX !== 0 || moveZ !== 0) {
+                const angle = Math.atan2(moveX, moveZ);
+                playerGroup.rotation.y = angle;
+                const speed = 7.5 * delta;
+                let nx = playerGroup.position.x + Math.sin(angle) * speed;
+                let nz = playerGroup.position.z + Math.cos(angle) * speed;
+
+                if (inInterior) {
+                    if (Math.abs(nx) < 4.2 && Math.abs(nz) < 4.2) { playerGroup.position.x = nx; playerGroup.position.z = nz; }
+                } else {
+                    if (Math.hypot(nx, nz) < 26) { playerGroup.position.x = nx; playerGroup.position.z = nz; }
+                }
+
+                const waddle = Math.sin(time * 14) * 0.5;
+                const headBob = Math.abs(Math.sin(time * 14)) * 0.08;
+                if (leftArm && rightArm && leftLeg && rightLeg && chibiHead) {
+                    leftArm.rotation.x = waddle; rightArm.rotation.x = -waddle;
+                    leftLeg.rotation.x = -waddle; rightLeg.rotation.x = waddle;
+                    chibiHead.position.y = headBob;
+                }
+            } else {
+                const breath = Math.sin(time * 3.5) * 0.03;
+                if (leftArm && rightArm && leftLeg && rightLeg && chibiHead) {
+                    leftArm.rotation.x = 0; rightArm.rotation.x = 0;
+                    leftLeg.rotation.x = 0; rightLeg.rotation.x = 0;
+                    chibiHead.position.y = breath;
+                }
+            }
+
+            fishes.forEach(f => {
+                f.angle += f.speed * delta * 15;
+                f.mesh.position.x = Math.cos(f.angle) * f.radius;
+                f.mesh.position.z = Math.sin(f.angle) * f.radius;
+                f.mesh.rotation.y = -f.angle + Math.PI / 2;
+                if (f.shadowMesh) {
+                    f.shadowMesh.position.x = f.mesh.position.x;
+                    f.shadowMesh.position.z = f.mesh.position.z;
+                }
+            });
+
+            updateEnvironment();
+
+            // STABLE CAMERA (Zero shaking / bobbing)
+            if (!inInterior) {
+                camera.position.x += (playerGroup.position.x - camera.position.x) * 0.08;
+                camera.position.z += (playerGroup.position.z + 26 - camera.position.z) * 0.08;
+                camera.lookAt(playerGroup.position.x, 1, playerGroup.position.z);
+            } else {
+                camera.position.set(0, 7.5, 11);
+                camera.lookAt(0, 1, 0);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function updateEnvironment() {
+            gameTime = (gameTime + 0.12) % (24 * 60);
+            const h = Math.floor(gameTime / 60).toString().padStart(2, '0');
+            const m = Math.floor(gameTime % 60).toString().padStart(2, '0');
+            document.getElementById('hud-time').innerText = `${h}:${m}`;
+
+            const hour = gameTime / 60;
+            const sunAngle = (hour / 24) * Math.PI * 2 - Math.PI / 2;
+            sunLight.position.set(Math.cos(sunAngle) * 50, Math.sin(sunAngle) * 50, 25);
+
+            if (hour > 6 && hour < 18) {
+                scene.background.setHex(0xfbcfe8); scene.fog.color.setHex(0xfbcfe8); sunLight.intensity = 1.1;
+            } else {
+                scene.background.setHex(0x1e1b4b); scene.fog.color.setHex(0x1e1b4b); sunLight.intensity = 0.25;
+            }
+
+            bugs.forEach(b => {
+                b.mesh.position.x += b.vx; b.mesh.position.z += b.vz;
+                if (Math.hypot(b.mesh.position.x, b.mesh.position.z) > 24) { b.vx *= -1; b.vz *= -1; }
+            });
+
+            farmPlots.forEach(plot => {
+                if (plot.state === 'planted') {
+                    plot.growthProgress += 0.005;
+                    if (plot.growthProgress >= 1.0) {
+                        plot.state = 'ready';
+                        if (plot.cropMesh) scene.remove(plot.cropMesh);
+                        const cropGeo = new THREE.DodecahedronGeometry(0.45);
+                        let colorHex = plot.cropType === 'carrot' ? 0xf97316 : (plot.cropType === 'tomato' ? 0xef4444 : 0xeab308);
+                        const cropMat = new THREE.MeshStandardMaterial({ color: colorHex });
+                        plot.cropMesh = new THREE.Mesh(cropGeo, cropMat);
+                        plot.cropMesh.position.set(plot.x, 0.4, plot.z);
+                        scene.add(plot.cropMesh);
+                    }
+                }
+            });
+        }
+
+        function performAction() {
+            const pPos = playerGroup.position;
+
+            if (inInterior) {
+                if (pPos.distanceTo(new THREE.Vector3(0, 0, 4.2)) < 2.0) { exitHouse(); return; }
+                showToast('🏠 お部屋の中ではかわいい家具が置けるよ！', '');
+                return;
+            }
+
+            const nearBuilding = worldObjects.find(obj => obj.position.distanceTo(pPos) < 3.5);
+            if (nearBuilding) {
+                if (nearBuilding.userData.type === 'player_house') { enterHouse(); return; }
+                if (nearBuilding.userData.type === 'museum') { openMuseumModal(); return; }
+                if (nearBuilding.userData.type === 'shop') { openShopModal(); return; }
+            }
+
+            if (playerState.activeTool === 'hoe') {
+                const nearPlot = farmPlots.find(p => Math.hypot(p.x - pPos.x, p.z - pPos.z) < 1.8);
+                if (nearPlot && nearPlot.state === 'empty') {
+                    nearPlot.state = 'tilled';
+                    nearPlot.mesh.material.color.setHex(0x78350f);
+                    audio.playPop(550);
+                    showToast('🌾 畑をきれいに耕したよ！', '');
+                } else { showToast('🌾 耕せる畑の近くで使ってね！', ''); }
+                return;
+            }
+
+            if (playerState.activeTool === 'seed') {
+                const nearPlot = farmPlots.find(p => Math.hypot(p.x - pPos.x, p.z - pPos.z) < 1.8);
+                if (nearPlot && nearPlot.state === 'tilled') {
+                    let seedItem = playerState.inventory.find(i => ITEMS_DB[i.id]?.category === 'seed');
+                    if (seedItem && seedItem.count > 0) {
+                        seedItem.count--;
+                        if (seedItem.count === 0) playerState.inventory = playerState.inventory.filter(i => i.id !== seedItem.id);
+                        
+                        let cropType = ITEMS_DB[seedItem.id].cropType || 'carrot';
+                        nearPlot.state = 'planted';
+                        nearPlot.cropType = cropType;
+                        nearPlot.growthProgress = 0;
+
+                        const sproutGeo = new THREE.BoxGeometry(0.2, 0.3, 0.2);
+                        const sproutMat = new THREE.MeshStandardMaterial({ color: 0x22c55e });
+                        nearPlot.cropMesh = new THREE.Mesh(sproutGeo, sproutMat);
+                        nearPlot.cropMesh.position.set(nearPlot.x, 0.25, nearPlot.z);
+                        scene.add(nearPlot.cropMesh);
+
+                        audio.playPop(650);
+                        showToast('🌱 タネをまいたよ！スクスク育つのが楽しみ！', '');
+                    } else { showToast('🌱 タネを持っていないよ！DIYでクラフトしよう！', ''); }
+                } else { showToast('🌱 耕された畑の近くで使ってね！', ''); }
+                return;
+            }
+
+            if (playerState.activeTool === 'path') { placePathTile(pPos.x, pPos.z); return; }
+            if (playerState.activeTool === 'fence') { placeFence(pPos.x, pPos.z); return; }
+
+            const readyPlot = farmPlots.find(p => Math.hypot(p.x - pPos.x, p.z - pPos.z) < 1.8 && p.state === 'ready');
+            if (readyPlot) {
+                audio.playCatch();
+                let harvestedId = `crop_${readyPlot.cropType}`;
+                addItem(harvestedId, 1);
+                scene.remove(readyPlot.cropMesh);
+                readyPlot.cropMesh = null;
+                readyPlot.state = 'empty';
+                readyPlot.mesh.material.color.setHex(0xa16207);
+                showToast('✨ 作物を収穫したよ！', ITEMS_DB[harvestedId].name);
+                return;
+            }
+
+            if (playerState.activeTool === 'rod') {
+                const nearFish = fishes.find(f => f.mesh.position.distanceTo(pPos) < 5.5);
+                if (nearFish) {
+                    startMiniGame('fish', nearFish);
+                } else { showToast('🌊 近くに魚影がないみたい…', ''); }
+            } else if (playerState.activeTool === 'net') {
+                const nearBug = bugs.find(b => b.mesh.position.distanceTo(pPos) < 3.8);
+                if (nearBug) {
+                    startMiniGame('bug', nearBug);
+                } else { showToast('🍃 近くに虫がいないよ！', ''); }
+            } else if (playerState.activeTool === 'shovel') {
+                const nearFossil = fossils.find(f => f.position.distanceTo(pPos) < 3.2);
+                if (nearFossil) {
+                    audio.playCatch();
+                    addItem('fossil'); playerState.critterpedia['fossil'] = true;
+                    showToast('🦴 かせきをほりあてた！', '');
+                    scene.remove(nearFossil);
+                    fossils = fossils.filter(f => f !== nearFossil);
+                } else { showToast('🪵 ここには何もないみたい', ''); }
+            } else {
+                const nearTree = trees.find(t => t.position.distanceTo(pPos) < 3.2);
+                if (nearTree && nearTree.userData.hasFruit) {
+                    audio.playPop(520);
+                    nearTree.userData.hasFruit = false;
+                    nearTree.userData.fruitMesh.visible = false;
+                    addItem('apple'); addItem('wood');
+                    showToast('🍎 リンゴともくざいをゲット！', '');
+                } else { showToast('✋ 道具を選んでアクションしてね！', ''); }
+            }
+        }
+
+        function startMiniGame(type, entity) {
+            minigameActive = true;
+            minigameData = { type: type, targetEntity: entity, markerPos: 0, markerDir: 1, targetMin: 30 + Math.random() * 20, targetMax: 60 + Math.random() * 20 };
+            document.getElementById('minigame-target.style')
+            const targetEl = document.getElementById('minigame-target');
+            targetEl.style.left = `${minigameData.targetMin}%`;
+            targetEl.style.width = `${minigameData.targetMax - minigameData.targetMin}%`;
+            document.getElementById('minigame-title').innerText = type === 'fish' ? '🎣 釣りチャレンジ！' : '🦋 虫捕りチャレンジ！';
+            document.getElementById('minigame-overlay').classList.remove('hidden');
+        }
+
+        document.getElementById('btn-timing').addEventListener('click', () => {
+            if (!minigameActive) return;
+            minigameActive = false;
+            document.getElementById('minigame-overlay').classList.add('hidden');
+
+            if (minigameData.markerPos >= minigameData.targetMin && minigameData.markerPos <= minigameData.targetMax) {
+                audio.playSplash(); audio.playCatch();
+                let ent = minigameData.targetEntity;
+                if (minigameData.type === 'fish') {
+                    addItem(ent.type); playerState.critterpedia[ent.type] = true;
+                    showToast('🎉 大成功！魚を釣り上げた！', ITEMS_DB[ent.type].name);
+                    scene.remove(ent.mesh);
+                    if (ent.shadowMesh) scene.remove(ent.shadowMesh);
+                    fishes = fishes.filter(f => f !== ent);
+                } else {
+                    addItem(ent.type); playerState.critterpedia[ent.type] = true;
+                    showToast('🎉 大成功！虫をゲットした！', ITEMS_DB[ent.type].name);
+                    scene.remove(ent.mesh);
+                    bugs = bugs.filter(b => b !== ent);
+                }
+            } else {
+                audio.playPop(300);
+                showToast('💦 ざんねん！タイミングがずれて逃げられてしまった…', '');
+            }
+        });
+
+        function enterHouse() {
+            inInterior = true;
+            audio.playPop(700);
+
+            scene.background.setHex(0xfce7f3);
+            scene.fog.color.setHex(0xfce7f3);
+            islandMesh.visible = false;
+            oceanMesh.visible = false;
+            trees.forEach(t => t.visible = false);
+            rocks.forEach(r => r.visible = false);
+            fossils.forEach(f => f.visible = false);
+            fishes.forEach(f => { f.mesh.visible = false; if (f.shadowMesh) f.shadowMesh.visible = false; });
+            bugs.forEach(b => b.visible = false);
+            worldObjects.forEach(o => o.visible = false);
+            farmPlots.forEach(p => { p.mesh.visible = false; if (p.cropMesh) p.cropMesh.visible = false; });
+
+            const roomGeo = new THREE.BoxGeometry(9, 6, 9);
+            const roomMat = new THREE.MeshStandardMaterial({ color: 0xfff0f5, side: THREE.BackSide });
+            const room = new THREE.Mesh(roomGeo, roomMat);
+            room.position.y = 3;
+            scene.add(room);
+            interiorObjects.push(room);
+
+            playerGroup.position.set(0, 0, 3);
+            showToast('🏠 パステルハウスに入ったよ！', '');
+        }
+
+        function exitHouse() {
+            inInterior = false;
+            audio.playPop(500);
+
+            scene.background.setHex(0xfbcfe8);
+            scene.fog.color.setHex(0xfbcfe8);
+            islandMesh.visible = true;
+            oceanMesh.visible = true;
+            trees.forEach(t => t.visible = true);
+            rocks.forEach(r => r.visible = true);
+            fossils.forEach(f => f.visible = true);
+            fishes.forEach(f => { f.mesh.visible = true; if (f.shadowMesh) f.shadowMesh.visible = true; });
+            bugs.forEach(b => b.visible = true);
+            worldObjects.forEach(o => o.visible = true);
+            farmPlots.forEach(p => { p.mesh.visible = true; if (p.cropMesh) p.cropMesh.visible = true; });
+
+            interiorObjects.forEach(obj => scene.remove(obj));
+            interiorObjects = [];
+
+            playerGroup.position.set(10, 0, -6);
+            showToast('🌸 外に出たよ！', '');
+        }
+
+        function placePathTile(x, z) {
+            let tileItem = playerState.inventory.find(i => i.id === 'path_tile');
+            if (tileItem && tileItem.count > 0) {
+                tileItem.count--;
+                const pathGeo = new THREE.PlaneGeometry(1.2, 1.2);
+                const pathMat = new THREE.MeshStandardMaterial({ color: 0xfbcfe8, roughness: 0.9 });
+                const pathMesh = new THREE.Mesh(pathGeo, pathMat);
+                pathMesh.rotation.x = -Math.PI / 2;
+                pathMesh.position.set(Math.round(x), -1.78, Math.round(z));
+                scene.add(pathMesh);
+                paths.push(pathMesh);
+                audio.playPop(650);
+                showToast('🧱 タイルをかわいく敷いたよ！', '');
+            } else { showToast('❌ パステルタイルが足りないよ！', ''); }
+        }
+
+        function placeFence(x, z) {
+            let fenceItem = playerState.inventory.find(i => i.id === 'fence_item');
+            if (fenceItem && fenceItem.count > 0) {
+                fenceItem.count--;
+                const fenceGeo = new THREE.BoxGeometry(1.2, 0.7, 0.3);
+                const fenceMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+                const fenceMesh = new THREE.Mesh(fenceGeo, fenceMat);
+                fenceMesh.position.set(Math.round(x), 0.35, Math.round(z));
+                fenceMesh.castShadow = true;
+                scene.add(fenceMesh);
+                fences.push(fenceMesh);
+                audio.playPop(600);
+                showToast('🏡 フェンスを置いたよ！', '');
+            } else { showToast('❌ フェンスがないよ！', ''); }
+        }
+
+        function addItem(id, count = 1) {
+            let inv = playerState.inventory.find(i => i.id === id);
+            if (inv) inv.count += count;
+            else playerState.inventory.push({ id: id, count: count });
+        }
+
+        document.getElementById('btn-customize').addEventListener('click', () => {
+            document.getElementById('modal-customize').classList.remove('hidden');
+        });
+        document.getElementById('close-customize').addEventListener('click', () => {
+            document.getElementById('modal-customize').classList.add('hidden');
+        });
+
+        window.setEars = function(type) {
+            playerState.earsType = type;
+            rebuildChibiModel();
+            audio.playPop(750);
+            showToast('🎀 コーデを変更したよ！', '');
+        };
+        window.setHoodieColor = function(color) {
+            playerState.hoodieColor = color;
+            rebuildChibiModel();
+            audio.playPop(700);
+            showToast('👚 パーカーの色を変えたよ！', '');
+        };
+        window.setHairColor = function(color) {
+            playerState.hairColor = color;
+            rebuildChibiModel();
+            audio.playPop(650);
+            showToast('💇 髪色を変えたよ！', '');
+        };
+
+        document.getElementById('btn-inventory').addEventListener('click', () => {
+            renderInventory();
+            document.getElementById('modal-inventory').classList.remove('hidden');
+        });
+        document.getElementById('close-inventory').addEventListener('click', () => {
+            document.getElementById('modal-inventory').classList.add('hidden');
+        });
+
+        function renderInventory() {
+            const grid = document.getElementById('inventory-grid');
+            grid.innerHTML = '';
+            playerState.inventory.forEach(item => {
+                const db = ITEMS_DB[item.id] || { name: item.id, icon: '📦' };
+                const el = document.createElement('div');
+                el.className = 'bg-pink-50 border-2 border-pink-300 rounded-2xl p-2 flex flex-col items-center justify-center relative shadow';
+                el.innerHTML = `
+                    <span class="text-3xl">${db.icon}</span>
+                    <span class="text-[10px] font-black text-pink-900 mt-1">${db.name}</span>
+                    <span class="absolute top-1 right-1 bg-pink-400 text-white font-black text-[10px] px-1.5 py-0.5 rounded-full">x${item.count}</span>
+                `;
+                grid.appendChild(el);
+            });
+        }
+
+        document.getElementById('btn-craft').addEventListener('click', () => {
+            renderCraft();
+            document.getElementById('modal-craft').classList.remove('hidden');
+        });
+        document.getElementById('close-craft').addEventListener('click', () => {
+            document.getElementById('modal-craft').classList.add('hidden');
+        });
+
+        function renderCraft() {
+            const list = document.getElementById('craft-list');
+            list.innerHTML = '';
+            CRAFT_RECIPES.forEach(r => {
+                let reqStr = Object.keys(r.req).map(k => `${ITEMS_DB[k]?.name || k}x${r.req[k]}`).join(', ');
+                const el = document.createElement('div');
+                el.className = 'bg-pink-50 border-2 border-pink-300 rounded-2xl p-3 flex justify-between items-center';
+                el.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-3xl">${r.icon}</span>
+                        <div>
+                            <div class="font-black text-xs text-pink-900">${r.name}</div>
+                            <div class="text-[10px] text-pink-700 font-bold">必要: ${reqStr}</div>
+                        </div>
+                    </div>
+                    <button onclick="craftItem('${r.id}')" class="btn-cute-pink px-3 py-1.5 rounded-xl text-xs font-bold text-white">DIYする</button>
+                `;
+                list.appendChild(el);
+            });
+        }
+
+        window.craftItem = function(recipeId) {
+            const recipe = CRAFT_RECIPES.find(r => r.id === recipeId);
+            let canCraft = true;
+            for (let k in recipe.req) {
+                let inv = playerState.inventory.find(i => i.id === k);
+                if (!inv || inv.count < recipe.req[k]) canCraft = false;
+            }
+            if (canCraft) {
+                for (let k in recipe.req) {
+                    let inv = playerState.inventory.find(i => i.id === k);
+                    inv.count -= recipe.req[k];
+                }
+                addItem(recipe.id, recipe.count || 1);
+                audio.playCatch();
+                showToast('🔨 DIY大成功！', recipe.name);
+                renderCraft();
+            } else { showToast('❌ 材料がたりないよ！', ''); }
+        };
+
+        document.getElementById('btn-book').addEventListener('click', () => {
+            renderBookPedia();
+            document.getElementById('modal-book').classList.remove('hidden');
+        });
+        document.getElementById('close-book').addEventListener('click', () => {
+            document.getElementById('modal-book').classList.add('hidden');
+        });
+
+        window.switchBookTab = function(tab) {
+            if (tab === 'pedia') renderBookPedia();
+            else renderMuseumDonation();
+        };
+
+        function renderBookPedia() {
+            const grid = document.getElementById('book-grid');
+            grid.innerHTML = '';
+            Object.keys(ITEMS_DB).forEach(key => {
+                const item = ITEMS_DB[key];
+                if (['fish', 'bug', 'fossil'].includes(item.category)) {
+                    const isCaught = playerState.critterpedia[key];
+                    const card = document.createElement('div');
+                    card.className = `p-3 rounded-2xl border-2 flex flex-col items-center justify-center text-center ${isCaught ? 'bg-pink-50 border-pink-300' : 'bg-slate-100 border-slate-200 opacity-50'}`;
+                    card.innerHTML = `
+                        <span class="text-3xl">${isCaught ? item.icon : '❓'}</span>
+                        <span class="text-xs font-black text-pink-900 mt-1">${isCaught ? item.name : '？？？'}</span>
+                    `;
+                    grid.appendChild(card);
+                }
+            });
+        }
+
+        function renderMuseumDonation() {
+            const grid = document.getElementById('book-grid');
+            grid.innerHTML = '';
+            playerState.inventory.forEach(inv => {
+                const db = ITEMS_DB[inv.id];
+                if (db && ['fish', 'bug', 'fossil'].includes(db.category)) {
+                    const card = document.createElement('div');
+                    card.className = 'bg-pink-50 border-2 border-pink-300 rounded-2xl p-3 flex flex-col items-center justify-center text-center';
+                    card.innerHTML = `
+                        <span class="text-3xl">${db.icon}</span>
+                        <span class="text-xs font-black text-pink-900 mt-1">${db.name}</span>
+                        <button onclick="donateItem('${inv.id}')" class="mt-2 btn-cute-pink px-2.5 py-1 rounded-xl text-[10px] font-bold text-white">寄贈する</button>
+                    `;
+                    grid.appendChild(card);
+                }
+            });
+            if (grid.children.length === 0) {
+                grid.innerHTML = '<div class="col-span-3 text-center text-pink-800 text-xs font-bold py-6">寄贈できる魚・虫・化石を持っていません</div>';
+            }
+        }
+
+        window.donateItem = function(id) {
+            let inv = playerState.inventory.find(i => i.id === id);
+            if (inv && inv.count > 0) {
+                inv.count--;
+                playerState.museumDonations[id] = true;
+                if (inv.count === 0) playerState.inventory = playerState.inventory.filter(i => i.id !== id);
+                audio.playBell();
+                showToast('🏛️ 博物館に寄贈したよ！', '');
+                renderMuseumDonation();
+            }
+        };
+
+        function openMuseumModal() {
+            renderMuseumDonation();
+            document.getElementById('modal-book').classList.remove('hidden');
+        }
+
+        function openShopModal() {
+            const container = document.getElementById('shop-content');
+            container.innerHTML = '';
+            playerState.inventory.forEach(inv => {
+                const db = ITEMS_DB[inv.id];
+                if (db) {
+                    const row = document.createElement('div');
+                    row.className = 'bg-pink-50 border-2 border-pink-300 rounded-2xl p-3 flex justify-between items-center';
+                    row.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">${db.icon}</span>
+                            <div>
+                                <div class="font-black text-xs text-pink-900">${db.name}</div>
+                                <div class="text-[10px] text-pink-700">買取: ${db.price} ベル (x${inv.count})</div>
+                            </div>
+                        </div>
+                        <button onclick="sellItem('${inv.id}')" class="btn-cute-pink px-3 py-1.5 rounded-xl text-xs font-bold text-white">1個売る</button>
+                    `;
+                    container.appendChild(row);
+                }
+            });
+            document.getElementById('modal-shop').classList.remove('hidden');
+        }
+
+        window.sellItem = function(id) {
+            let inv = playerState.inventory.find(i => i.id === id);
+            if (inv && inv.count > 0) {
+                inv.count--;
+                playerState.bells += ITEMS_DB[id].price;
+                if (inv.count === 0) playerState.inventory = playerState.inventory.filter(i => i.id !== id);
+                audio.playBell();
+                showToast('✨ お店で売却したよ！', `+${ITEMS_DB[id].price}ベル`);
+                document.getElementById('hud-bells').innerText = `${playerState.bells.toLocaleString()} ベル`;
+                openShopModal();
+            }
+        };
+
+        document.getElementById('close-shop').addEventListener('click', () => {
+            document.getElementById('modal-shop').classList.add('hidden');
+        });
+
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                playerState.activeTool = e.currentTarget.dataset.tool;
+                document.querySelectorAll('.tool-btn').forEach(b => {
+                    b.classList.remove('bg-pink-300', 'border-pink-600');
+                    b.classList.add('bg-pink-50', 'border-pink-300');
+                });
+                e.currentTarget.classList.remove('bg-pink-50', 'border-pink-300');
+                e.currentTarget.classList.add('bg-pink-300', 'border-pink-600');
+            });
+        });
+
+        function showToast(title, msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-icon').innerText = title.split(' ')[0];
+            document.getElementById('toast-msg').innerText = `${title} ${msg}`;
+            toast.classList.remove('opacity-0', '-translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-4');
+            }, 2200);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
