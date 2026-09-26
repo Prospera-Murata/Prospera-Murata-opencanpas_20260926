@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>トップビュー・ローグライク</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap');
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background-color: #0b0f19;
+            color: #f8fafc;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        .grid-cell {
+            transition: all 0.15s ease;
+        }
+        .grid-cell:hover {
+            border-color: #38bdf8;
+            background-color: rgba(56, 189, 248, 0.08);
+        }
+        @keyframes float-up {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-45px) scale(1.2); }
+        }
+        .floating-score {
+            animation: float-up 0.8s ease-out forwards;
+            pointer-events: none;
+            position: absolute;
+            z-index: 50;
+            font-weight: 900;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-3 sm:p-5 relative overflow-x-hidden">
+
+    <div id="popup-container" class="absolute inset-0 pointer-events-none z-50 overflow-hidden"></div>
+
+    <header class="w-full max-w-2xl bg-slate-900/90 backdrop-blur border border-slate-800 rounded-2xl p-3.5 shadow-2xl flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h1 class="text-lg sm:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">トップビュー・ローグライク</h1>
+            <p class="text-[11px] text-slate-400">4x4グリッド・パズル・戦略ショップ</p>
+        </div>
+        <div class="flex items-center gap-2.5 text-xs">
+            <div class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+                <span class="text-slate-400 text-[10px] block">スコア / 目標</span>
+                <span id="score-display" class="font-bold text-cyan-400 text-sm">0</span>
+                <span class="text-slate-500">/</span>
+                <span id="target-display" class="text-slate-300 font-semibold">180</span>
+            </div>
+            <div class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+                <span class="text-slate-400 text-[10px] block">ウェーブ</span>
+                <span id="wave-display" class="font-bold text-amber-400 text-sm">1</span>
+            </div>
+            <div class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+                <span class="text-slate-400 text-[10px] block">ゴールド</span>
+                <span id="gold-display" class="font-bold text-yellow-400 text-sm">50</span>
+            </div>
+        </div>
+        <div class="flex gap-2 w-full sm:w-auto justify-end">
+            <button onclick="openShop()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs transition shadow cursor-pointer">ショップ 🛒</button>
+            <button onclick="openModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer">📋 変更点</button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-2xl flex flex-col items-center my-3">
+        <div class="text-center mb-2">
+            <p id="instruction-text" class="text-xs text-cyan-300 font-semibold">手札のカードを選んで4x4マスに配置してください</p>
+        </div>
+        
+        <div class="bg-slate-900/80 p-3.5 rounded-3xl border border-slate-800 shadow-2xl backdrop-blur relative">
+            <div id="game-grid" class="grid grid-cols-4 gap-2.5 sm:gap-3">
+                <!-- Dynamically generated grid cells -->
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full max-w-2xl bg-slate-900/90 backdrop-blur border border-slate-800 rounded-2xl p-3.5 shadow-2xl flex flex-col gap-2">
+        <div class="flex justify-between items-center px-1">
+            <span class="text-xs font-bold text-slate-300">手札（6枚）※クリックして選択</span>
+            <div class="flex gap-2">
+                <button onclick="resetHand()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer shadow">手札リセット 🔄</button>
+                <button onclick="endTurn()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer shadow">手札補充 ⏩</button>
+            </div>
+        </div>
+        <div id="hand-container" class="grid grid-cols-6 gap-2 min-h-[75px]">
+            <!-- Dynamically generated hand cards -->
+        </div>
+    </footer>
+
+    <div id="changelog-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-800 max-w-md w-full rounded-3xl p-6 shadow-2xl flex flex-col gap-4">
+            <h2 class="text-lg font-black text-cyan-400">📋 最新の修正・調整点</h2>
+            <div class="text-xs sm:text-sm text-slate-300 space-y-2 max-h-60 overflow-y-auto pr-2">
+                <p><strong>1. 正常なプレイアビリティの回復：</strong>スクリプトとHTMLの構造を完全に整理し、確実にタップやクリックで反応するよう修正しました。</p>
+                <p><strong>2. 控えめなマルチプライヤー倍率：</strong>マルチカード（✖️1.2倍）による得点増加量を適切に調整し、ゲームバランスを改善しました。</p>
+                <p><strong>3. スコア常時表示とフローティング：</strong>置いたセルの上に正確なスコアが表示され、ポップアップで演出されます。</p>
+                <p><strong>4. 快適な操作：</strong>手札6枚から選択して空白マスに置くだけでスムーズに進行します。</p>
+            </div>
+            <button onclick="closeModal()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 rounded-xl transition cursor-pointer mt-1">閉じる</button>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-800 max-w-md w-full rounded-3xl p-6 shadow-2xl flex flex-col gap-4">
+            <h2 class="text-lg font-black text-indigo-400">🛒 ローグライク・ショップ</h2>
+            <div id="shop-items" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                <!-- Shop items injected via JS -->
+            </div>
+            <button onclick="closeShop()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl transition cursor-pointer mt-1">ショップを閉じる</button>
+        </div>
+    </div>
+
+    <div id="result-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-800 max-w-sm w-full rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+            <h2 class="text-xl font-black text-cyan-400">🎉 ウェーブクリア！</h2>
+            <p id="result-desc" class="text-xs text-slate-300">目標スコアを達成しました！ゴールド報酬を獲得して次のウェーブへ進みます。</p>
+            <button onclick="nextWave()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition shadow-lg cursor-pointer">次のウェーブへ進む</button>
+        </div>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+
+                if (type === 'place') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(750, now + 0.1);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'bomb') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(40, now + 0.3);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'clear') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(350, now);
+                    osc.frequency.setValueAtTime(550, now + 0.1);
+                    osc.frequency.setValueAtTime(800, now + 0.2);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                }
+            } catch (e) {
+                console.log('Audio error:', e);
+            }
+        }
+
+        const gridSize = 4;
+        let grid = Array(gridSize * gridSize).fill(null);
+        let score = 0;
+        let targetScore = 180;
+        let wave = 1;
+        let gold = 50;
+        let hand = [];
+        let selectedHandIndex = null;
+
+        let upgrades = {
+            scoreBoost: 1.0,
+            bombPower: 1.0
+        };
+
+        const cardTypes = [
+            { id: 'normal', name: 'ノーマル', value: 10, color: 'bg-slate-800 text-slate-200 border-slate-700', icon: '🪙' },
+            { id: 'gold', name: 'ゴールド', value: 20, color: 'bg-amber-900/50 text-amber-300 border-amber-700/60', icon: '💰' },
+            { id: 'shield', name: 'シールド', value: 14, color: 'bg-blue-900/50 text-blue-300 border-blue-700/60', icon: '🛡️' },
+            { id: 'mult', name: 'マルチ', value: 8, mult: 1.2, color: 'bg-purple-900/50 text-purple-300 border-purple-700/60', icon: '✖️' },
+            { id: 'bomb', name: 'ボム', value: 35, color: 'bg-red-900/50 text-red-300 border-red-700/60', icon: '💣' },
+            { id: 'gem', name: 'ジェム', value: 25, color: 'bg-emerald-900/50 text-emerald-300 border-emerald-700/60', icon: '💎' }
+        ];
+
+        function initGame() {
+            grid = Array(gridSize * gridSize).fill(null);
+            score = 0;
+            dealHand();
+            updateUI();
+            renderGrid();
+        }
+
+        function dealHand() {
+            hand = [];
+            for (let i = 0; i < 6; i++) {
+                const randomCard = cardTypes[Math.floor(Math.random() * cardTypes.length)];
+                hand.push({ ...randomCard, uid: Math.random() });
+            }
+            selectedHandIndex = null;
+            renderHand();
+        }
+
+        function resetHand() {
+            dealHand();
+            playSound('place');
+            showNotification('手札をリフレッシュしました', 'text-amber-300');
+        }
+
+        function endTurn() {
+            dealHand();
+            playSound('place');
+            showNotification('手札を補充しました', 'text-emerald-300');
+        }
+
+        function renderGrid() {
+            const container = document.getElementById('game-grid');
+            container.innerHTML = '';
+            grid.forEach((cell, idx) => {
+                const div = document.createElement('div');
+                div.className = `grid-cell w-[70px] h-[70px] sm:w-[85px] sm:h-[85px] bg-slate-950/80 border-2 border-slate-800 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition shadow-inner relative`;
+                
+                if (cell) {
+                    div.className += ` ${cell.color} border-solid`;
+                    div.innerHTML = `
+                        <span class="text-2xl sm:text-3xl">${cell.icon}</span>
+                        <span class="text-[9px] font-bold mt-0.5 text-slate-300">${cell.name}</span>
+                        <span class="absolute bottom-1 right-1.5 text-[9px] font-black text-cyan-300 bg-slate-950/90 px-1.5 py-0.5 rounded shadow">+${cell.displayScore || cell.value}pt</span>
+                    `;
+                } else {
+                    div.innerHTML = `<span class="text-slate-700 font-bold text-sm">+</span>`;
+                }
+
+                div.onclick = () => handleCellClick(idx, div);
+                container.appendChild(div);
+            });
+        }
+
+        function renderHand() {
+            const container = document.getElementById('hand-container');
+            container.innerHTML = '';
+            hand.forEach((card, idx) => {
+                const btn = document.createElement('div');
+                const isSelected = selectedHandIndex === idx;
+                btn.className = `p-2 rounded-2xl border flex flex-col items-center justify-between transition cursor-pointer ${card.color} ${isSelected ? 'ring-2 ring-cyan-400 scale-105 shadow-lg shadow-cyan-500/20 bg-slate-800' : 'hover:border-slate-600'}`;
+                
+                const previewVal = Math.round(card.value * upgrades.scoreBoost * (card.mult || 1));
+                btn.innerHTML = `
+                    <span class="text-[10px] font-bold text-slate-300 truncate w-full text-center">${card.name}</span>
+                    <span class="text-xl sm:text-2xl my-0.5">${card.icon}</span>
+                    <span class="text-[9px] font-bold text-cyan-400 bg-slate-950/70 px-1 rounded">+${previewVal}pt</span>
+                `;
+                btn.onclick = () => {
+                    selectedHandIndex = idx;
+                    renderHand();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function handleCellClick(index, cellElement) {
+            if (selectedHandIndex === null) {
+                showNotification('先に手札のカードを選択してください', 'text-yellow-300');
+                return;
+            }
+            if (grid[index] !== null) return;
+
+            const card = hand[selectedHandIndex];
+            let gained = 0;
+
+            const rect = cellElement.getBoundingClientRect();
+            const containerRect = document.getElementById('popup-container').getBoundingClientRect();
+            const posX = rect.left - containerRect.left + rect.width / 2;
+            const posY = rect.top - containerRect.top + rect.height / 2;
+
+            if (card.id === 'bomb') {
+                playSound('bomb');
+                let destroyedCount = 0;
+                const row = Math.floor(index / gridSize);
+                const col = index % gridSize;
+
+                for (let r = Math.max(0, row - 1); r <= Math.min(gridSize - 1, row + 1); r++) {
+                    for (let c = Math.max(0, col - 1); c <= Math.min(gridSize - 1, col + 1); c++) {
+                        const targetIdx = r * gridSize + c;
+                        if (grid[targetIdx] !== null) {
+                            grid[targetIdx] = null;
+                            destroyedCount++;
+                        }
+                    }
+                }
+                gained = Math.round((card.value + (destroyedCount * 20 * upgrades.bombPower)) * upgrades.scoreBoost);
+                card.displayScore = gained;
+                score += gained;
+                showFloatingScore(posX, posY, `💣 +${gained} pt`, 'text-red-400');
+            } else {
+                playSound('place');
+                gained = Math.round(card.value * upgrades.scoreBoost);
+                if (card.mult) {
+                    gained = Math.round(gained * card.mult);
+                }
+                card.displayScore = gained;
+                score += gained;
+                showFloatingScore(posX, posY, `+${gained} pt`, 'text-cyan-400');
+            }
+
+            grid[index] = card;
+            hand.splice(selectedHandIndex, 1);
+            selectedHandIndex = null;
+
+            updateUI();
+            renderGrid();
+            renderHand();
+
+            checkWaveProgress();
+        }
+
+        function showFloatingScore(x, y, text, colorClass) {
+            const container = document.getElementById('popup-container');
+            const div = document.createElement('div');
+            div.className = `floating-score text-base sm:text-lg drop-shadow-lg ${colorClass}`;
+            div.style.left = `${x}px`;
+            div.style.top = `${y}px`;
+            div.style.transform = 'translate(-50%, -50%)';
+            div.innerText = text;
+            container.appendChild(div);
+            setTimeout(() => div.remove(), 800);
+        }
+
+        function showNotification(text, colorClass) {
+            const container = document.getElementById('popup-container');
+            const div = document.createElement('div');
+            div.className = `absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 px-4 py-2 rounded-2xl shadow-2xl font-bold text-xs z-50 ${colorClass}`;
+            div.innerText = text;
+            container.appendChild(div);
+            setTimeout(() => div.remove(), 1800);
+        }
+
+        function checkWaveProgress() {
+            if (score >= targetScore) {
+                playSound('clear');
+                gold += 45;
+                document.getElementById('result-modal').classList.remove('hidden');
+                document.getElementById('result-modal').classList.add('flex');
+            }
+        }
+
+        function nextWave() {
+            wave++;
+            targetScore = Math.floor(targetScore * 1.45);
+            document.getElementById('result-modal').classList.remove('flex');
+            document.getElementById('result-modal').classList.add('hidden');
+            initGame();
+        }
+
+        function updateUI() {
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('target-display').innerText = targetScore;
+            document.getElementById('wave-display').innerText = wave;
+            document.getElementById('gold-display').innerText = gold;
+        }
+
+        function openModal() {
+            document.getElementById('changelog-modal').classList.remove('hidden');
+            document.getElementById('changelog-modal').classList.add('flex');
+        }
+        function closeModal() {
+            document.getElementById('changelog-modal').classList.remove('flex');
+            document.getElementById('changelog-modal').classList.add('hidden');
+        }
+
+        function openShop() {
+            const container = document.getElementById('shop-items');
+            container.innerHTML = `
+                <div class="flex justify-between items-center bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                    <div>
+                        <div class="font-bold text-xs text-slate-200">マルチカード追加</div>
+                        <div class="text-[10px] text-slate-400">手札にマルチカード（✖️1.2）を追加</div>
+                    </div>
+                    <button onclick="buyCard('mult', 25)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl font-black text-xs cursor-pointer shadow">25 G</button>
+                </div>
+                <div class="flex justify-between items-center bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                    <div>
+                        <div class="font-bold text-xs text-slate-200">ボムカード追加</div>
+                        <div class="text-[10px] text-slate-400">手札に爆破ボムカードを追加</div>
+                    </div>
+                    <button onclick="buyCard('bomb', 30)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl font-black text-xs cursor-pointer shadow">30 G</button>
+                </div>
+                <div class="flex justify-between items-center bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                    <div>
+                        <div class="font-bold text-xs text-slate-200">スコアブースター永続強化</div>
+                        <div class="text-[10px] text-slate-400">全カードの配置スコアが +15% 永続アップ</div>
+                    </div>
+                    <button onclick="buyUpgrade('scoreBoost', 0.15, 35)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl font-black text-xs cursor-pointer shadow">35 G</button>
+                </div>
+                <div class="flex justify-between items-center bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                    <div>
+                        <div class="font-bold text-xs text-slate-200">爆破威力 永続強化</div>
+                        <div class="text-[10px] text-slate-400">ボム破壊時のボーナスが +25% アップ</div>
+                    </div>
+                    <button onclick="buyUpgrade('bombPower', 0.25, 30)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl font-black text-xs cursor-pointer shadow">30 G</button>
+                </div>
+            `;
+            document.getElementById('shop-modal').classList.remove('hidden');
+            document.getElementById('shop-modal').classList.add('flex');
+        }
+
+        function closeShop() {
+            document.getElementById('shop-modal').classList.remove('flex');
+            document.getElementById('shop-modal').classList.add('hidden');
+        }
+
+        function buyCard(cardId, cost) {
+            if (gold >= cost) {
+                gold -= cost;
+                const def = cardTypes.find(c => c.id === cardId);
+                hand.push({ ...def, uid: Math.random() });
+                updateUI();
+                renderHand();
+                closeShop();
+                playSound('clear');
+                showNotification('カードを購入しました！', 'text-yellow-300');
+            } else {
+                showNotification('ゴールドが足りません！', 'text-red-400');
+            }
+        }
+
+        function buyUpgrade(type, amount, cost) {
+            if (gold >= cost) {
+                gold -= cost;
+                if (type === 'scoreBoost') upgrades.scoreBoost += amount;
+                if (type === 'bombPower') upgrades.bombPower += amount;
+                updateUI();
+                renderHand();
+                closeShop();
+                playSound('clear');
+                showNotification('永続アップグレード成功！', 'text-indigo-300');
+            } else {
+                showNotification('ゴールドが足りません！', 'text-red-400');
+            }
+        }
+
+        window.onload = function() {
+            initGame();
+        };
+    </script>
+</body>
+</html>

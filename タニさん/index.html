@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タワーディフェンス</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap');
+        
+        body {
+            font-family: 'Zen Kaku Gothic New', 'Outfit', sans-serif;
+            background-color: #030712;
+            color: #f3f4f6;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track { background: #0b0f19; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-btn {
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.2s ease;
+        }
+
+        .glass-btn:hover:not(:disabled) {
+            background: rgba(51, 65, 85, 0.95);
+            border-color: rgba(255, 255, 255, 0.28);
+            transform: translateY(-1px);
+        }
+
+        .pulse-glow {
+            animation: pulse-glow-anim 2s infinite;
+        }
+
+        @keyframes pulse-glow-anim {
+            0%, 100% { box-shadow: 0 0 12px rgba(99, 102, 241, 0.4); }
+            50% { box-shadow: 0 0 26px rgba(99, 102, 241, 0.88); }
+        }
+
+        canvas {
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col md:flex-row bg-slate-950 text-slate-100">
+
+    <div class="flex-1 flex flex-col h-full relative overflow-hidden">
+        
+        <!-- Top Navigation HUD -->
+        <header class="glass-panel px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-10 border-b border-slate-800">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-2.5 rounded-xl shadow-lg">
+                    <i class="fa-solid font-bold text-xl text-white fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="font-black text-lg md:text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400">
+                        タワーディフェンス
+                    </h1>
+                    <span id="stage-indicator" class="text-xs font-bold text-indigo-300 bg-indigo-950/80 px-2 py-0.5 rounded-md border border-indigo-800/60">
+                        STAGE 1 / 10
+                    </span>
+                </div>
+            </div>
+
+            <!-- Status HUD Stats -->
+            <div class="flex items-center gap-3 md:gap-5 text-sm">
+                <!-- Base HP -->
+                <div class="flex items-center space-x-2 bg-slate-900/90 px-3 py-1.5 rounded-lg border border-rose-900/40">
+                    <i class="fa-solid fa-heart text-rose-500 animate-pulse text-base"></i>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-bold leading-none">拠点耐久度</div>
+                        <div class="font-black text-slate-100" id="hud-base-hp">10 / 10</div>
+                    </div>
+                </div>
+
+                <!-- Gold -->
+                <div class="flex items-center space-x-2 bg-slate-900/90 px-3 py-1.5 rounded-lg border border-amber-900/40">
+                    <i class="fa-solid fa-coins text-amber-400 text-base"></i>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-bold leading-none">所持金</div>
+                        <div class="font-black text-amber-300" id="hud-gold">300 G</div>
+                    </div>
+                </div>
+
+                <!-- Enemies Left -->
+                <div class="flex items-center space-x-2 bg-slate-900/90 px-3 py-1.5 rounded-lg border border-emerald-900/40">
+                    <i class="fa-solid fa-ghost text-emerald-400 text-base"></i>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-bold leading-none">残り敵数</div>
+                        <div class="font-black text-emerald-300" id="hud-enemies">0 / 10</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls (Speed, Sound, Restart, One-Click HTML Download) -->
+            <div class="flex items-center space-x-2">
+                <button id="btn-speed" class="glass-btn px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 text-blue-300 hover:text-white" title="倍速切替">
+                    <i class="fa-solid fa-forward"></i>
+                    <span id="speed-text">1.0x</span>
+                </button>
+                <button id="btn-manual-restart" class="glass-btn px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-300 hover:text-white flex items-center gap-1" title="ステージやり直し">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span class="hidden sm:inline">やり直し</span>
+                </button>
+                <button id="btn-sound" class="glass-btn p-2 rounded-lg text-xs text-slate-300 hover:text-white" title="効果音 ON/OFF">
+                    <i class="fa-solid fa-volume-high" id="sound-icon"></i>
+                </button>
+                <button id="btn-download-html" class="glass-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border-indigo-700/60 flex items-center gap-1.5 shadow-md">
+                    <i class="fa-solid fa-download text-indigo-400"></i>
+                    <span class="hidden sm:inline">HTML保存</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 relative bg-slate-950 flex items-center justify-center p-2 overflow-hidden" id="canvas-container">
+            <canvas id="gameCanvas" class="rounded-xl border border-slate-800 shadow-2xl bg-slate-900 cursor-pointer max-w-full max-h-full"></canvas>
+
+            <!-- Floating Notification Overlay -->
+            <div id="banner-msg" class="absolute top-6 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-indigo-500/50 text-indigo-200 px-6 py-2.5 rounded-full shadow-2xl pointer-events-none transition-all duration-300 opacity-0 -translate-y-4 flex items-center space-x-2 z-20">
+                <i class="fa-solid fa-circle-info text-indigo-400" id="banner-icon"></i>
+                <span id="banner-text" class="text-sm font-bold">マス目を選択してタワーを設置してください</span>
+            </div>
+
+            <!-- Start Wave Overlay Button -->
+            <div id="wave-start-overlay" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+                <button id="btn-start-wave" class="pulse-glow bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-400 hover:to-pink-500 text-white font-black text-base px-8 py-3.5 rounded-full shadow-xl flex items-center space-x-3 transform active:scale-95 transition">
+                    <i class="fa-solid fa-play text-lg"></i>
+                    <span>ウェーブ開始</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <aside class="w-full md:w-80 lg:w-96 glass-panel border-t md:border-t-0 md:border-l border-slate-800 flex flex-col h-auto md:h-full z-20">
+        <div class="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+            <h2 class="font-extrabold text-sm text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-indigo-400"></i>
+                タワー建設・管理
+            </h2>
+            <div class="text-xs text-slate-400" id="selection-status">マス目を選んで建設</div>
+        </div>
+
+        <!-- Scrollable Shop & Upgrade Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-5">
+
+            <!-- TOWER SHOP SELECTION -->
+            <section class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">建築タワー選択</span>
+                    <span class="text-[11px] text-slate-500">設置コスト</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2" id="tower-shop-grid">
+                    <!-- Assault Tower -->
+                    <button data-type="assault" class="tower-select-btn glass-btn p-2.5 rounded-xl flex flex-col items-center justify-between text-center relative border-2 border-blue-500/80">
+                        <div class="w-10 h-10 rounded-lg bg-blue-500/20 border border-blue-400 flex items-center justify-center mb-1">
+                            <i class="fa-solid fa-gun text-blue-400 text-lg"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-200">アサルト</span>
+                        <span class="text-[10px] text-slate-400">バランス型</span>
+                        <span class="text-[11px] font-black text-amber-400 mt-1">100 G</span>
+                    </button>
+
+                    <!-- Machine Gun Tower -->
+                    <button data-type="machinegun" class="tower-select-btn glass-btn p-2.5 rounded-xl flex flex-col items-center justify-between text-center relative border-2 border-transparent hover:border-amber-400">
+                        <div class="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-400 flex items-center justify-center mb-1">
+                            <i class="fa-solid fa-bolt text-amber-400 text-lg"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-200">マシンガン</span>
+                        <span class="text-[10px] text-slate-400">高速連射型</span>
+                        <span class="text-[11px] font-black text-amber-400 mt-1">150 G</span>
+                    </button>
+
+                    <!-- Shotgun Tower -->
+                    <button data-type="shotgun" class="tower-select-btn glass-btn p-2.5 rounded-xl flex flex-col items-center justify-between text-center relative border-2 border-transparent hover:border-rose-400">
+                        <div class="w-10 h-10 rounded-lg bg-rose-500/20 border border-rose-400 flex items-center justify-center mb-1">
+                            <i class="fa-solid fa-burst text-rose-400 text-lg"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-200">ショットガン</span>
+                        <span class="text-[10px] text-slate-400">広拡散・近接</span>
+                        <span class="text-[11px] font-black text-amber-400 mt-1">200 G</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- SELECTED TOWER UPGRADE / SELL DETAILS -->
+            <section id="upgrade-panel" class="hidden bg-slate-900/90 p-3.5 rounded-xl border border-indigo-500/40 space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div class="flex items-center space-x-2">
+                        <div id="selected-tower-icon" class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-400 flex items-center justify-center">
+                            <i class="fa-solid fa-tower-cell text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-sm text-slate-100" id="selected-tower-name">アサルトタワー</div>
+                            <div class="text-[10px] text-slate-400" id="selected-tower-coords">マス: (0, 0)</div>
+                        </div>
+                    </div>
+                    <button id="btn-close-upgrade" class="text-slate-400 hover:text-slate-200 p-1">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+
+                <!-- Tower HP Status -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-[11px]">
+                        <span class="text-slate-400">タワー耐久度 (HP)</span>
+                        <span class="font-bold text-slate-200" id="selected-tower-hp">100 / 100</span>
+                    </div>
+                    <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                        <div id="selected-tower-hp-bar" class="bg-emerald-500 h-full w-full transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <!-- Upgrades (+10% stats per level) -->
+                <div class="space-y-2 pt-1">
+                    <!-- Damage Power -->
+                    <button id="btn-up-power" class="w-full glass-btn p-2 rounded-lg flex items-center justify-between text-xs">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-bolt text-amber-400"></i>
+                            <span>火力強化 (+10%)</span>
+                            <span class="text-[10px] text-indigo-300 font-mono" id="val-up-power">Lv.1</span>
+                        </div>
+                        <span class="font-bold text-amber-400" id="cost-up-power">40 G</span>
+                    </button>
+
+                    <!-- Range -->
+                    <button id="btn-up-range" class="w-full glass-btn p-2 rounded-lg flex items-center justify-between text-xs">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-expand text-blue-400"></i>
+                            <span>射程強化 (+10%)</span>
+                            <span class="text-[10px] text-indigo-300 font-mono" id="val-up-range">Lv.1</span>
+                        </div>
+                        <span class="font-bold text-amber-400" id="cost-up-range">35 G</span>
+                    </button>
+
+                    <!-- Repair / Max HP -->
+                    <button id="btn-up-hp" class="w-full glass-btn p-2 rounded-lg flex items-center justify-between text-xs">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-wrench text-rose-400"></i>
+                            <span>耐久増強 (+10%)</span>
+                            <span class="text-[10px] text-indigo-300 font-mono" id="val-up-hp">Lv.1</span>
+                        </div>
+                        <span class="font-bold text-amber-400" id="cost-up-hp">30 G</span>
+                    </button>
+                </div>
+
+                <!-- Sell Button (100% Refund) -->
+                <button id="btn-sell-tower" class="w-full bg-rose-950/70 hover:bg-rose-900 border border-rose-800 text-rose-200 py-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-2 transition mt-2">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span>全額返金撤去 (<span id="sell-refund-amount">0</span> G)</span>
+                </button>
+            </section>
+
+            <!-- Map Legend -->
+            <section class="space-y-2 bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">マップ凡例</div>
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3.5 h-3.5 rounded bg-emerald-500/80 border border-emerald-300"></div>
+                        <span class="text-slate-300">S (敵出現地点)</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3.5 h-3.5 rounded bg-rose-500/80 border border-rose-300"></div>
+                        <span class="text-slate-300">G (プレイヤー拠点)</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3.5 h-3.5 rounded bg-slate-800 border border-slate-700"></div>
+                        <span class="text-slate-300">敵移動ルート</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3.5 h-3.5 rounded bg-slate-900 border border-slate-800"></div>
+                        <span class="text-slate-300">設置可能エリア</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </aside>
+
+    <!-- Game Over Modal -->
+    <div id="modal-gameover" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-rose-800/80 rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
+            <div class="w-16 h-16 bg-rose-500/20 border-2 border-rose-500 text-rose-500 rounded-full flex items-center justify-center mx-auto text-3xl">
+                <i class="fa-solid fa-skull"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-rose-400">防衛失敗</h3>
+                <p class="text-xs text-slate-400 mt-1">拠点が破壊されました。</p>
+            </div>
+            <div class="bg-slate-950 p-3.5 rounded-xl text-left text-xs space-y-2 text-slate-300 border border-slate-800">
+                <div class="flex justify-between"><span>到達ステージ:</span> <strong id="go-stage" class="text-indigo-400">Stage 1</strong></div>
+                <div class="flex justify-between border-t border-slate-800 pt-1.5">
+                    <span>引き継ぎ可能資金:</span> 
+                    <strong id="go-restored-gold" class="text-amber-400">0 G</strong>
+                </div>
+                <div class="text-[10px] text-emerald-400 leading-tight pt-1">
+                    <i class="fa-solid fa-circle-check mr-1"></i>設置費用は100%返還され、撃破した敵の獲得コインもそのまま引き継がれます！
+                </div>
+            </div>
+            <button id="btn-restart-stage" class="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl shadow-lg transition">
+                獲得コインを引き継いで再挑戦
+            </button>
+        </div>
+    </div>
+
+    <!-- Stage Victory Modal -->
+    <div id="modal-victory" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-emerald-800/80 rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
+            <div class="w-16 h-16 bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-3xl">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-emerald-400" id="vic-title">ステージクリア！</h3>
+                <p class="text-xs text-slate-400 mt-1" id="vic-sub">配置タワーは100%全額返金・自動全撤去されました！</p>
+            </div>
+            <div class="bg-slate-950 p-3 rounded-xl text-left text-xs space-y-1.5 text-slate-300 border border-slate-800">
+                <div class="flex justify-between"><span>全返金キャッシュバック:</span> <strong id="vic-refund" class="text-amber-400">+0 G</strong></div>
+                <div class="flex justify-between"><span>次ステージ開始時資金:</span> <strong id="vic-next-gold" class="text-amber-300">0 G</strong></div>
+                <div class="flex justify-between border-t border-slate-800 pt-1"><span>次ステージ敵総数:</span> <strong id="vic-next-enemies" class="text-emerald-400">20 体 (2倍)</strong></div>
+            </div>
+            <button id="btn-next-stage" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition">
+                次のステージへ進む
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Web Audio Synthesizer for Retro Sound FX
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            }
+
+            playShoot(type) {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                if (type === 'assault') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(350, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.08);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'machinegun') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(550, now);
+                    osc.frequency.exponentialRampToValueAtTime(150, now + 0.04);
+                    gain.gain.setValueAtTime(0.07, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.04);
+                    osc.start(now);
+                    osc.stop(now + 0.04);
+                } else if (type === 'shotgun') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(35, now + 0.16);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.16);
+                    osc.start(now);
+                    osc.stop(now + 0.16);
+                }
+            }
+
+            playExplosion() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(25, now + 0.25);
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+
+            playCoin() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(987.77, now);
+                osc.frequency.setValueAtTime(1318.51, now + 0.07);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.18);
+            }
+
+            playUpgrade() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(1046.50, now + 0.09);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        const soundFX = new SoundFX();
+
+        const GRID_COLS = 20;
+        const GRID_ROWS = 12;
+        let tileSize = 40;
+
+        // TOWER SPECS
+        const TOWER_TYPES = {
+            assault: {
+                name: "アサルトタワー",
+                cost: 100,
+                color: "#3b82f6",
+                range: 150,
+                damage: 20,
+                fireRate: 0.4,
+                pellets: 1,
+                spread: 0,
+                maxHp: 100,
+                type: "assault"
+            },
+            machinegun: {
+                name: "マシンガンタワー",
+                cost: 150,
+                color: "#f59e0b",
+                range: 120,
+                damage: 20,
+                fireRate: 0.12,
+                pellets: 1,
+                spread: 0.08,
+                maxHp: 100,
+                type: "machinegun"
+            },
+            shotgun: {
+                name: "ショットガンタワー",
+                cost: 200,
+                color: "#f43f5e",
+                range: 100,
+                damage: 20,
+                fireRate: 0.8,
+                pellets: 5,
+                spread: 0.4,
+                maxHp: 100,
+                type: "shotgun"
+            }
+        };
+
+        // ENEMY SPECS
+        const ENEMY_TYPES = {
+            normal: { name: "ノーマル型", speed: 1.3, hp: 100, atk: 10, reward: 10, size: 9, color: "#10b981" },
+            fast:   { name: "スピード型", speed: 2.1, hp: 80, atk: 10, reward: 10, size: 7, color: "#06b6d4" },
+            heavy:  { name: "アーマー型", speed: 0.8, hp: 200, atk: 20, reward: 10, size: 13, color: "#f43f5e" }
+        };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvas-container');
+
+        // Game State Variables
+        let stage = 1;
+        let baseHp = 10;
+        let maxBaseHp = 10;
+        let gold = 300; // Total current funds
+        let gameSpeed = 1.0;
+        let isWaveActive = false;
+        let selectedTowerType = 'assault';
+        let selectedGridPos = null;
+        let selectedTowerInstance = null;
+
+        let gridPath = [];
+        let pixelPath = [];
+        let towers = [];
+        let enemies = [];
+        let projectiles = [];
+        let particles = [];
+        let waveEnemiesToSpawn = [];
+        let spawnTimer = 0;
+        let lastTimestamp = 0;
+
+        function resizeCanvas() {
+            const rect = canvasContainer.getBoundingClientRect();
+            const aspect = GRID_COLS / GRID_ROWS;
+            let width = rect.width - 16;
+            let height = rect.height - 16;
+
+            if (width / height > aspect) {
+                width = height * aspect;
+            } else {
+                height = width / aspect;
+            }
+
+            canvas.width = Math.floor(width);
+            canvas.height = Math.floor(height);
+            tileSize = canvas.width / GRID_COLS;
+
+            buildStageGridPath(stage);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function buildStageGridPath(stg) {
+            gridPath = [];
+
+            if (stg === 1) {
+                gridPath = [
+                    {x: 0, y: 3}, {x: 8, y: 3}, {x: 8, y: 8}, {x: 19, y: 8}
+                ];
+            } else if (stg === 2) {
+                gridPath = [
+                    {x: 0, y: 2}, {x: 14, y: 2}, {x: 14, y: 6}, {x: 4, y: 6}, {x: 4, y: 10}, {x: 19, y: 10}
+                ];
+            } else if (stg === 3) {
+                gridPath = [
+                    {x: 0, y: 1}, {x: 17, y: 1}, {x: 17, y: 10}, {x: 2, y: 10}, {x: 2, y: 5}, {x: 19, y: 5}
+                ];
+            } else {
+                const numLaps = Math.min(6, 3 + (stg % 4));
+                gridPath.push({x: 0, y: 1});
+                const stepY = Math.floor((GRID_ROWS - 2) / (numLaps));
+                
+                for (let i = 0; i < numLaps; i++) {
+                    const rY = 1 + i * stepY;
+                    if (i % 2 === 0) {
+                        gridPath.push({x: GRID_COLS - 2, y: rY});
+                    } else {
+                        gridPath.push({x: 1, y: rY});
+                    }
+                }
+                gridPath.push({x: GRID_COLS - 1, y: GRID_ROWS - 2});
+            }
+
+            pixelPath = [];
+            for (let i = 0; i < gridPath.length - 1; i++) {
+                const start = gridPath[i];
+                const end = gridPath[i + 1];
+
+                const dx = Math.sign(end.x - start.x);
+                const dy = Math.sign(end.y - start.y);
+
+                let currX = start.x;
+                let currY = start.y;
+
+                while (currX !== end.x || currY !== end.y) {
+                    pixelPath.push({
+                        x: (currX + 0.5) * tileSize,
+                        y: (currY + 0.5) * tileSize
+                    });
+                    currX += dx;
+                    currY += dy;
+                }
+            }
+            const last = gridPath[gridPath.length - 1];
+            pixelPath.push({
+                x: (last.x + 0.5) * tileSize,
+                y: (last.y + 0.5) * tileSize
+            });
+        }
+
+        function isTileOnPath(col, row) {
+            for (let i = 0; i < gridPath.length - 1; i++) {
+                const p1 = gridPath[i];
+                const p2 = gridPath[i + 1];
+
+                const minX = Math.min(p1.x, p2.x);
+                const maxX = Math.max(p1.x, p2.x);
+                const minY = Math.min(p1.y, p2.y);
+                const maxY = Math.max(p1.y, p2.y);
+
+                if (col >= minX && col <= maxX && row >= minY && row <= maxY) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        class Tower {
+            constructor(col, row, typeKey) {
+                const spec = TOWER_TYPES[typeKey];
+                this.col = col;
+                this.row = row;
+                this.x = (col + 0.5) * tileSize;
+                this.y = (row + 0.5) * tileSize;
+                this.typeKey = typeKey;
+                this.name = spec.name;
+                this.color = spec.color;
+                
+                this.baseRange = spec.range;
+                this.baseDamage = spec.damage;
+                this.baseMaxHp = spec.maxHp;
+
+                this.range = spec.range;
+                this.damage = spec.damage;
+                this.hp = spec.maxHp;
+                this.maxHp = spec.maxHp;
+
+                this.fireRate = spec.fireRate;
+                this.pellets = spec.pellets;
+                this.spread = spec.spread;
+
+                this.totalInvestedCost = spec.cost;
+                this.levelPower = 1;
+                this.levelRange = 1;
+                this.levelHp = 1;
+                this.cooldown = 0;
+                this.target = null;
+                this.rotation = 0;
+            }
+
+            update(dt) {
+                this.cooldown -= dt;
+                
+                this.target = null;
+                let minDist = this.range;
+
+                for (let enemy of enemies) {
+                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                    if (dist <= this.range && dist < minDist) {
+                        minDist = dist;
+                        this.target = enemy;
+                    }
+                }
+
+                if (this.target) {
+                    this.rotation = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+
+                    if (this.cooldown <= 0) {
+                        this.shoot();
+                        this.cooldown = this.fireRate;
+                    }
+                }
+            }
+
+            shoot() {
+                if (!this.target) return;
+                soundFX.playShoot(this.typeKey);
+
+                if (this.pellets === 1) {
+                    const angleOffset = (Math.random() - 0.5) * this.spread;
+                    projectiles.push(new Projectile(
+                        this.x, this.y,
+                        this.rotation + angleOffset,
+                        this.damage,
+                        this.color,
+                        this.typeKey === 'machinegun' ? 480 : 400
+                    ));
+                } else {
+                    for (let i = 0; i < this.pellets; i++) {
+                        const angleOffset = ((i / (this.pellets - 1)) - 0.5) * this.spread;
+                        projectiles.push(new Projectile(
+                            this.x, this.y,
+                            this.rotation + angleOffset,
+                            this.damage,
+                            this.color,
+                            360
+                        ));
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                if (selectedTowerInstance === this) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.range, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(99, 102, 241, 0.12)";
+                    ctx.fill();
+                    ctx.strokeStyle = "rgba(129, 140, 248, 0.7)";
+                    ctx.setLineDash([4, 4]);
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                const pad = tileSize * 0.1;
+                ctx.fillStyle = "#1e293b";
+                ctx.fillRect(-tileSize/2 + pad, -tileSize/2 + pad, tileSize - pad*2, tileSize - pad*2);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-tileSize/2 + pad, -tileSize/2 + pad, tileSize - pad*2, tileSize - pad*2);
+
+                ctx.rotate(this.rotation);
+                ctx.fillStyle = this.color;
+
+                if (this.typeKey === 'assault') {
+                    ctx.fillRect(0, -tileSize * 0.08, tileSize * 0.38, tileSize * 0.16);
+                } else if (this.typeKey === 'machinegun') {
+                    ctx.fillRect(0, -tileSize * 0.12, tileSize * 0.35, tileSize * 0.08);
+                    ctx.fillRect(0, 0.04, tileSize * 0.35, tileSize * 0.08);
+                } else if (this.typeKey === 'shotgun') {
+                    ctx.fillRect(0, -tileSize * 0.16, tileSize * 0.28, tileSize * 0.32);
+                }
+
+                ctx.restore();
+
+                // HP Bar
+                if (this.hp < this.maxHp) {
+                    const hpRatio = Math.max(0, this.hp / this.maxHp);
+                    ctx.fillStyle = "rgba(0,0,0,0.8)";
+                    ctx.fillRect(this.x - tileSize*0.4, this.y - tileSize*0.4, tileSize*0.8, 4);
+                    ctx.fillStyle = hpRatio > 0.4 ? "#10b981" : "#f43f5e";
+                    ctx.fillRect(this.x - tileSize*0.4, this.y - tileSize*0.4, tileSize*0.8 * hpRatio, 4);
+                }
+            }
+        }
+
+        class Enemy {
+            constructor(typeKey) {
+                const spec = ENEMY_TYPES[typeKey];
+                this.typeKey = typeKey;
+                this.name = spec.name;
+                this.speed = spec.speed * (1 + (stage - 1) * 0.03);
+                
+                this.maxHp = Math.round(spec.hp * Math.pow(1.22, stage - 1));
+                this.hp = this.maxHp;
+                this.atk = spec.atk;
+                this.reward = spec.reward;
+                this.size = Math.min(tileSize * 0.3, spec.size);
+                this.color = spec.color;
+
+                this.pathIndex = 0;
+                this.x = pixelPath[0].x;
+                this.y = pixelPath[0].y;
+                this.attackCooldown = 0;
+            }
+
+            update(dt) {
+                if (this.pathIndex >= pixelPath.length - 1) return;
+
+                const targetPt = pixelPath[this.pathIndex + 1];
+                const dx = targetPt.x - this.x;
+                const dy = targetPt.y - this.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist < 3) {
+                    this.pathIndex++;
+                    if (this.pathIndex >= pixelPath.length - 1) {
+                        baseHp -= 1;
+                        createParticles(this.x, this.y, '#f43f5e', 12);
+                        soundFX.playExplosion();
+                        this.hp = 0;
+                        updateHUD();
+                        return;
+                    }
+                } else {
+                    this.x += (dx / dist) * this.speed * 60 * dt;
+                    this.y += (dy / dist) * this.speed * 60 * dt;
+                }
+
+                // Attack Nearby Towers
+                this.attackCooldown -= dt;
+                if (this.attackCooldown <= 0) {
+                    for (let t of towers) {
+                        if (Math.hypot(t.x - this.x, t.y - this.y) < tileSize * 1.2) {
+                            t.hp -= this.atk;
+                            createParticles(t.x, t.y, '#f59e0b', 5);
+                            this.attackCooldown = 1.2;
+                            soundFX.playExplosion();
+                            
+                            if (t.hp <= 0) {
+                                towers = towers.filter(item => item !== t);
+                                if (selectedTowerInstance === t) deselectTower();
+                                showBanner("タワーが敵の攻撃により破壊されました！", "fa-triangle-exclamation");
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                const hpRatio = Math.max(0, this.hp / this.maxHp);
+                ctx.fillStyle = "rgba(0,0,0,0.8)";
+                ctx.fillRect(this.x - 12, this.y - this.size - 7, 24, 3.5);
+                ctx.fillStyle = "#10b981";
+                ctx.fillRect(this.x - 12, this.y - this.size - 7, 24 * hpRatio, 3.5);
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, angle, damage, color, speed) {
+                this.x = x;
+                this.y = y;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.damage = damage;
+                this.color = color;
+                this.life = 0.55;
+            }
+
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.life -= dt;
+
+                for (let e of enemies) {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) <= e.size + 4) {
+                        e.hp -= this.damage;
+                        createParticles(this.x, this.y, this.color, 4);
+                        return true;
+                    }
+                }
+                return this.life <= 0;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.vx = (Math.random() - 0.5) * 120;
+                this.vy = (Math.random() - 0.5) * 120;
+                this.life = 0.35;
+            }
+
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.life -= dt;
+                return this.life <= 0;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, Math.max(1, this.life * 7), 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function startWave() {
+            soundFX.init();
+            if (isWaveActive) return;
+
+            isWaveActive = true;
+            document.getElementById('wave-start-overlay').classList.add('hidden');
+
+            const totalEnemies = 10 * Math.pow(2, stage - 1);
+            waveEnemiesToSpawn = [];
+
+            for (let i = 0; i < totalEnemies; i++) {
+                let type = "normal";
+                const rand = Math.random();
+                if (stage >= 2 && rand > 0.5) type = "fast";
+                if (stage >= 3 && rand > 0.75) type = "heavy";
+                waveEnemiesToSpawn.push(type);
+            }
+
+            showBanner(`ステージ ${stage} ウェーブ開始！ (${totalEnemies}体)`, "fa-play");
+        }
+
+        function gameLoop(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            let dt = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+
+            dt = Math.min(dt, 0.1) * gameSpeed;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawGridMap();
+
+            if (isWaveActive && waveEnemiesToSpawn.length > 0) {
+                spawnTimer -= dt;
+                if (spawnTimer <= 0) {
+                    const enemyType = waveEnemiesToSpawn.shift();
+                    enemies.push(new Enemy(enemyType));
+                    spawnTimer = Math.max(0.15, 0.8 - stage * 0.05);
+                }
+            }
+
+            towers.forEach(t => {
+                t.update(dt);
+                t.draw();
+            });
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                enemy.update(dt);
+                if (enemy.hp <= 0) {
+                    if (enemy.hp <= 0 && enemy.pathIndex < pixelPath.length - 1) {
+                        gold += enemy.reward; // Keep enemy coins permanently
+                        soundFX.playCoin();
+                        updateHUD();
+                    }
+                    enemies.splice(i, 1);
+                } else {
+                    enemy.draw();
+                }
+            }
+
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                if (p.update(dt)) projectiles.splice(i, 1);
+                else p.draw();
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                if (particle.update(dt)) particles.splice(i, 1);
+                else particle.draw();
+            }
+
+            if (baseHp <= 0) {
+                triggerGameOver();
+                return;
+            }
+
+            if (isWaveActive && waveEnemiesToSpawn.length === 0 && enemies.length === 0) {
+                triggerStageVictory();
+                return;
+            }
+
+            updateHUD();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function drawGridMap() {
+            const startNode = gridPath[0];
+            const endNode = gridPath[gridPath.length - 1];
+
+            for (let c = 0; c < GRID_COLS; c++) {
+                for (let r = 0; r < GRID_ROWS; r++) {
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+
+                    const onPath = isTileOnPath(c, r);
+                    const isStart = (c === startNode.x && r === startNode.y);
+                    const isEnd = (c === endNode.x && r === endNode.y);
+
+                    if (isStart) {
+                        ctx.fillStyle = "rgba(16, 185, 129, 0.4)";
+                    } else if (isEnd) {
+                        ctx.fillStyle = "rgba(244, 63, 94, 0.4)";
+                    } else if (onPath) {
+                        ctx.fillStyle = "#1e293b";
+                    } else {
+                        ctx.fillStyle = "#0f172a";
+                    }
+
+                    ctx.fillRect(x, y, tileSize, tileSize);
+
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, y, tileSize, tileSize);
+
+                    if (isStart || isEnd) {
+                        ctx.fillStyle = "#ffffff";
+                        ctx.font = `bold ${Math.floor(tileSize * 0.35)}px sans-serif`;
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(isStart ? "S" : "G", x + tileSize / 2, y + tileSize / 2);
+                    }
+                }
+            }
+
+            if (selectedGridPos) {
+                ctx.strokeStyle = "#818cf8";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(selectedGridPos.col * tileSize, selectedGridPos.row * tileSize, tileSize, tileSize);
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('stage-indicator').innerText = `STAGE ${stage} / 10`;
+            document.getElementById('hud-base-hp').innerText = `${Math.max(0, baseHp)} / ${maxBaseHp}`;
+            document.getElementById('hud-gold').innerText = `${gold} G`;
+            
+            const totalEnemies = 10 * Math.pow(2, stage - 1);
+            const remaining = waveEnemiesToSpawn.length + enemies.length;
+            document.getElementById('hud-enemies').innerText = isWaveActive ? `${remaining} / ${totalEnemies}` : `0 / ${totalEnemies}`;
+
+            document.querySelectorAll('.tower-select-btn').forEach(btn => {
+                const type = btn.getAttribute('data-type');
+                const cost = TOWER_TYPES[type].cost;
+                if (gold < cost) btn.classList.add('opacity-50', 'cursor-not-allowed');
+                else btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
+
+            if (selectedTowerInstance) updateUpgradePanelUI();
+        }
+
+        canvas.addEventListener('click', (e) => {
+            soundFX.init();
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            const col = Math.floor(clickX / tileSize);
+            const row = Math.floor(clickY / tileSize);
+
+            if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
+
+            selectedGridPos = { col, row };
+
+            const existing = towers.find(t => t.col === col && t.row === row);
+            if (existing) {
+                selectTower(existing);
+                return;
+            }
+
+            deselectTower();
+
+            if (isTileOnPath(col, row)) {
+                showBanner("敵の移動ルート上には建設できません", "fa-triangle-exclamation");
+                return;
+            }
+
+            const spec = TOWER_TYPES[selectedTowerType];
+            if (gold >= spec.cost) {
+                gold -= spec.cost;
+                const newTower = new Tower(col, row, selectedTowerType);
+                towers.push(newTower);
+                selectTower(newTower);
+                soundFX.playUpgrade();
+                updateHUD();
+            } else {
+                showBanner("所持金が不足しています", "fa-coins");
+            }
+        });
+
+        document.querySelectorAll('.tower-select-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                soundFX.init();
+                document.querySelectorAll('.tower-select-btn').forEach(b => {
+                    b.classList.remove('border-blue-500/80', 'border-amber-400', 'border-rose-400');
+                    b.classList.add('border-transparent');
+                });
+                const type = btn.getAttribute('data-type');
+                if (type === 'assault') btn.classList.add('border-blue-500/80');
+                if (type === 'machinegun') btn.classList.add('border-amber-400');
+                if (type === 'shotgun') btn.classList.add('border-rose-400');
+                
+                selectedTowerType = type;
+                deselectTower();
+            });
+        });
+
+        function selectTower(tower) {
+            selectedTowerInstance = tower;
+            selectedGridPos = { col: tower.col, row: tower.row };
+            document.getElementById('upgrade-panel').classList.remove('hidden');
+            document.getElementById('selection-status').innerText = `${tower.name} を管理中`;
+            updateUpgradePanelUI();
+        }
+
+        function deselectTower() {
+            selectedTowerInstance = null;
+            document.getElementById('upgrade-panel').classList.add('hidden');
+            document.getElementById('selection-status').innerText = "マス目を選んで建設";
+        }
+
+        function updateUpgradePanelUI() {
+            if (!selectedTowerInstance) return;
+            const t = selectedTowerInstance;
+
+            document.getElementById('selected-tower-name').innerText = t.name;
+            document.getElementById('selected-tower-coords').innerText = `マス位置: (${t.col + 1}, ${t.row + 1})`;
+            document.getElementById('selected-tower-hp').innerText = `${Math.round(t.hp)} / ${Math.round(t.maxHp)}`;
+            document.getElementById('selected-tower-hp-bar').style.width = `${Math.max(0, (t.hp / t.maxHp) * 100)}%`;
+
+            const powerCost = Math.round(40 * Math.pow(1.2, t.levelPower - 1));
+            const rangeCost = Math.round(35 * Math.pow(1.2, t.levelRange - 1));
+            const hpCost = Math.round(30 * Math.pow(1.2, t.levelHp - 1));
+
+            document.getElementById('val-up-power').innerText = `Lv.${t.levelPower} (攻:${Math.round(t.damage)})`;
+            document.getElementById('val-up-range').innerText = `Lv.${t.levelRange} (射:${Math.round(t.range)})`;
+            document.getElementById('val-up-hp').innerText = `Lv.${t.levelHp} (HP:${Math.round(t.maxHp)})`;
+
+            document.getElementById('cost-up-power').innerText = `${powerCost} G`;
+            document.getElementById('cost-up-range').innerText = `${rangeCost} G`;
+            document.getElementById('cost-up-hp').innerText = `${hpCost} G`;
+            document.getElementById('sell-refund-amount').innerText = t.totalInvestedCost;
+        }
+
+        document.getElementById('btn-up-power').addEventListener('click', () => {
+            if (!selectedTowerInstance) return;
+            const t = selectedTowerInstance;
+            const cost = Math.round(40 * Math.pow(1.2, t.levelPower - 1));
+            if (gold >= cost) {
+                gold -= cost;
+                t.damage *= 1.10;
+                t.totalInvestedCost += cost;
+                t.levelPower++;
+                soundFX.playUpgrade();
+                updateHUD();
+            } else {
+                showBanner("所持金が不足しています", "fa-coins");
+            }
+        });
+
+        document.getElementById('btn-up-range').addEventListener('click', () => {
+            if (!selectedTowerInstance) return;
+            const t = selectedTowerInstance;
+            const cost = Math.round(35 * Math.pow(1.2, t.levelRange - 1));
+            if (gold >= cost) {
+                gold -= cost;
+                t.range *= 1.10;
+                t.totalInvestedCost += cost;
+                t.levelRange++;
+                soundFX.playUpgrade();
+                updateHUD();
+            } else {
+                showBanner("所持金が不足しています", "fa-coins");
+            }
+        });
+
+        document.getElementById('btn-up-hp').addEventListener('click', () => {
+            if (!selectedTowerInstance) return;
+            const t = selectedTowerInstance;
+            const cost = Math.round(30 * Math.pow(1.2, t.levelHp - 1));
+            if (gold >= cost) {
+                gold -= cost;
+                const hpGain = t.maxHp * 0.10;
+                t.maxHp += hpGain;
+                t.hp += hpGain;
+                t.totalInvestedCost += cost;
+                t.levelHp++;
+                soundFX.playUpgrade();
+                updateHUD();
+            } else {
+                showBanner("所持金が不足しています", "fa-coins");
+            }
+        });
+
+        document.getElementById('btn-sell-tower').addEventListener('click', () => {
+            if (!selectedTowerInstance) return;
+            gold += selectedTowerInstance.totalInvestedCost; // 100% Refund
+            soundFX.playCoin();
+            showBanner(`${selectedTowerInstance.name} を撤去し全額 ${selectedTowerInstance.totalInvestedCost} G を返金しました`, "fa-trash-can");
+            towers = towers.filter(t => t !== selectedTowerInstance);
+            deselectTower();
+            updateHUD();
+        });
+
+        document.getElementById('btn-close-upgrade').addEventListener('click', deselectTower);
+
+        // Speed Toggle Controls (1.0x -> 2.0x -> 4.0x)
+        document.getElementById('btn-speed').addEventListener('click', () => {
+            if (gameSpeed === 1.0) gameSpeed = 2.0;
+            else if (gameSpeed === 2.0) gameSpeed = 4.0;
+            else gameSpeed = 1.0;
+            document.getElementById('speed-text').innerText = `${gameSpeed.toFixed(1)}x`;
+        });
+
+        document.getElementById('btn-manual-restart').addEventListener('click', () => {
+            restartCurrentStageWithRefreshedFunds("ステージをやり直しました");
+        });
+
+        document.getElementById('btn-sound').addEventListener('click', () => {
+            soundFX.enabled = !soundFX.enabled;
+            document.getElementById('sound-icon').className = soundFX.enabled ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark";
+        });
+
+        document.getElementById('btn-start-wave').addEventListener('click', startWave);
+
+        function triggerStageVictory() {
+            isWaveActive = false;
+            
+            // 100% Cash Refund & Teardown for Stage Victory
+            let totalRefund = 0;
+            towers.forEach(t => totalRefund += t.totalInvestedCost);
+            gold += totalRefund;
+            towers = [];
+            deselectTower();
+
+            if (stage >= 10) {
+                document.getElementById('vic-title').innerText = "全10ステージ完全制覇！";
+                document.getElementById('vic-sub').innerText = "素晴らしい戦術です！全ウェーブをクリアしました！";
+                document.getElementById('vic-refund').innerText = `+${totalRefund} G`;
+                document.getElementById('vic-next-gold').innerText = `${gold} G`;
+                document.getElementById('vic-next-enemies').innerText = "全クリア";
+                document.getElementById('btn-next-stage').innerText = "ステージ1から再挑戦";
+            } else {
+                document.getElementById('vic-title').innerText = `STAGE ${stage} クリア！`;
+                document.getElementById('vic-sub').innerText = "配置タワーの全費用が100%返金・解体されました！";
+                document.getElementById('vic-refund').innerText = `+${totalRefund} G`;
+                document.getElementById('vic-next-gold').innerText = `${gold} G`;
+                const nextEnemyCount = 10 * Math.pow(2, stage);
+                document.getElementById('vic-next-enemies').innerText = `${nextEnemyCount} 体 (2倍)`;
+                document.getElementById('btn-next-stage').innerText = "次のステージへ進む";
+            }
+
+            document.getElementById('modal-victory').classList.remove('hidden');
+        }
+
+        document.getElementById('btn-next-stage').addEventListener('click', () => {
+            document.getElementById('modal-victory').classList.add('hidden');
+            if (stage >= 10) {
+                stage = 1;
+                gold = 300;
+            } else {
+                stage++;
+            }
+
+            baseHp = maxBaseHp;
+            buildStageGridPath(stage);
+            document.getElementById('wave-start-overlay').classList.remove('hidden');
+            updateHUD();
+            requestAnimationFrame(gameLoop);
+        });
+
+        function triggerGameOver() {
+            isWaveActive = false;
+            soundFX.playExplosion();
+            
+            // Refund 100% spent tower costs into gold on defeat
+            let refundFromTowers = 0;
+            towers.forEach(t => refundFromTowers += t.totalInvestedCost);
+            gold += refundFromTowers;
+
+            document.getElementById('go-stage').innerText = `Stage ${stage}`;
+            document.getElementById('go-restored-gold').innerText = `${gold} G`;
+            document.getElementById('modal-gameover').classList.remove('hidden');
+        }
+
+        // RESTART / REFUND FUNCTION: Refund spent tower cost AND KEEP earned enemy coins
+        function restartCurrentStageWithRefreshedFunds(msg) {
+            document.getElementById('modal-gameover').classList.add('hidden');
+            
+            // Refund active towers if restarted manually
+            let refundFromTowers = 0;
+            towers.forEach(t => refundFromTowers += t.totalInvestedCost);
+            gold += refundFromTowers;
+
+            isWaveActive = false;
+            baseHp = maxBaseHp;
+            towers = [];
+            enemies = [];
+            projectiles = [];
+            particles = [];
+            waveEnemiesToSpawn = [];
+            
+            deselectTower();
+            document.getElementById('wave-start-overlay').classList.remove('hidden');
+            showBanner(`${msg}: 獲得したコイン (${gold} G) を保持したまま再挑戦します`, "fa-rotate-left");
+            updateHUD();
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.getElementById('btn-restart-stage').addEventListener('click', () => {
+            restartCurrentStageWithRefreshedFunds("ステージリスタート");
+        });
+
+        function showBanner(msg, iconClass = "fa-circle-info") {
+            const banner = document.getElementById('banner-msg');
+            document.getElementById('banner-text').innerText = msg;
+            document.getElementById('banner-icon').className = `fa-solid ${iconClass} text-indigo-400`;
+            
+            banner.classList.remove('opacity-0', '-translate-y-4');
+            banner.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                banner.classList.remove('opacity-100', 'translate-y-0');
+                banner.classList.add('opacity-0', '-translate-y-4');
+            }, 2800);
+        }
+
+        document.getElementById('btn-download-html').addEventListener('click', () => {
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'tower_defense_game.html';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showBanner("HTMLゲームファイルをダウンロードしました！", "fa-download");
+        });
+
+        window.onload = function() {
+            resizeCanvas();
+            updateHUD();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
