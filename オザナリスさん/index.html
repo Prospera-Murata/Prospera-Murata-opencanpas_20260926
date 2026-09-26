@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>変身ヒーロー メタルバン</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Zen+Maru+Gothic:wght@700;900&display=swap');
+        
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            touch-action: manipulation;
+        }
+
+        .pixel-font {
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        button, div {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        @keyframes titleGlow {
+            0%, 100% { text-shadow: 0 0 15px #38bdf8, 0 0 30px #94a3b8, 0 0 45px #38bdf8; transform: scale(1); }
+            50% { text-shadow: 0 0 25px #e2e8f0, 0 0 50px #38bdf8, 0 0 75px #fbbf24; transform: scale(1.02); }
+        }
+        .title-glow {
+            animation: titleGlow 2s infinite ease-in-out;
+        }
+
+        @keyframes flashPulse {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.5; }
+        }
+        .bg-lightning {
+            background: radial-gradient(circle at 50% 30%, rgba(56, 189, 248, 0.3) 0%, rgba(148, 163, 184, 0.2) 50%, rgba(2, 6, 23, 0.95) 100%);
+            animation: flashPulse 1.5s infinite alternate;
+        }
+
+        .scanline-effect {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.4) 51%);
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col justify-between items-center p-2 sm:p-4 select-none">
+
+    <!-- ヘッダーエリア -->
+    <header class="w-full max-w-4xl flex flex-col sm:flex-row justify-between items-center my-2 gap-3 bg-slate-900/90 p-4 rounded-2xl border border-slate-800 shadow-xl">
+        <div class="flex items-center gap-3">
+            <div class="bg-cyan-500 p-2.5 rounded-xl text-slate-950 font-black shadow-lg">
+                <i class="fa-solid fa-bolt text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl sm:text-2xl font-black text-cyan-400 tracking-wider">変身ヒーロー メタルバン</h1>
+                <p class="text-xs text-slate-400">3人の銀河ヒーロー結集！レトロ変身アクション</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <!-- サウンド切り替えボタン -->
+            <button id="soundToggleBtn" onclick="toggleAudio()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold py-2.5 px-4 rounded-xl border border-slate-700 shadow-lg active:scale-95 transition text-sm cursor-pointer">
+                <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+                <span id="soundText">SOUND ON</span>
+            </button>
+
+            <!-- ソースコードダウンロードボタン -->
+            <button id="downloadBtn" onclick="downloadSourceCode()" class="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-2.5 px-4 rounded-xl shadow-lg hover:shadow-emerald-500/20 active:scale-95 transition duration-200 cursor-pointer text-sm">
+                <i class="fa-solid fa-file-arrow-down text-lg"></i>
+                <span class="hidden sm:inline">ダウンロード (HTML)</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- メインゲームエリア -->
+    <main class="w-full max-w-4xl flex flex-col items-center relative">
+        
+        <div class="relative w-full aspect-[16/9] max-h-[480px] flex justify-center items-center overflow-hidden rounded-2xl border-4 border-slate-800 bg-slate-900 shadow-2xl">
+            <!-- ゲーム描画用キャンバス -->
+            <canvas id="gameCanvas" width="800" height="450" class="w-full h-full object-contain"></canvas>
+
+            <!-- タイトル画面オーバレイ -->
+            <div id="titleOverlay" onclick="initTitleAudio()" class="absolute inset-0 bg-slate-950/95 flex flex-col justify-between items-center p-6 text-center z-20 cursor-pointer overflow-hidden">
+                <div class="absolute inset-0 bg-lightning pointer-events-none"></div>
+                <div class="scanline-effect"></div>
+
+                <div class="relative z-10 mt-4">
+                    <span class="inline-block px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-2 animate-pulse">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> 3人の銀河ヒーロー全機出撃！
+                    </span>
+                    <div class="text-2xl sm:text-3xl font-black text-slate-300 tracking-widest title-glow">変身ヒーロー</div>
+                    <div class="text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-cyan-400 to-amber-300 tracking-wider pixel-font title-glow my-1">メタルバン</div>
+                </div>
+
+                <div class="relative z-10 w-full max-w-md flex flex-col items-center gap-3 mb-6">
+                    <p id="audioHint" class="text-cyan-300/80 text-xs font-bold">
+                        <i class="fa-solid fa-music mr-1"></i> タップ/クリックでBGM自動再生！
+                    </p>
+
+                    <button onclick="event.stopPropagation(); startGame()" class="w-full bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-black px-8 py-4 rounded-xl shadow-[0_0_25px_rgba(56,189,248,0.5)] active:scale-95 transition duration-150 text-2xl flex items-center justify-center gap-3 border border-cyan-300/50 cursor-pointer">
+                        <i class="fa-solid fa-play text-2xl"></i>
+                        <span>GAME START</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ゲームオーバー / クリア オーバレイ -->
+            <div id="overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col justify-center items-center p-6 text-center transition-all duration-300 hidden z-10">
+                <h2 id="overlayTitle" class="text-3xl sm:text-5xl font-extrabold mb-2 text-rose-500 pixel-font tracking-wider">GAME OVER</h2>
+                <p id="overlayMessage" class="text-slate-300 text-sm sm:text-base mb-4">メタルバンが倒れてしまった！もう一度挑戦しよう！</p>
+                
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 mb-5 min-w-[220px] shadow-inner">
+                    <span class="text-xs text-slate-400 block mb-1">最終スコア</span>
+                    <span id="finalScore" class="text-3xl font-black text-amber-400 pixel-font">0</span>
+                </div>
+
+                <div class="flex flex-wrap justify-center gap-3">
+                    <button onclick="resetGame()" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black px-6 py-3 rounded-xl shadow-lg active:scale-95 transition text-base flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>もう一度遊ぶ</span>
+                    </button>
+                    <button onclick="returnToTitle()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-6 py-3 rounded-xl border border-slate-700 shadow-lg active:scale-95 transition text-base flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-house"></i>
+                        <span>タイトルへ戻る</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- タッチパネル＆操作ガイド -->
+        <div class="w-full mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- キーボード操作説明 -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 text-xs text-slate-300 flex flex-col justify-center gap-1.5">
+                <div class="font-bold text-cyan-400 flex items-center gap-2 mb-1">
+                    <i class="fa-solid fa-keyboard"></i> キーボード操作ガイド
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><span class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 text-cyan-300">← / →</span> または <span class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 text-cyan-300">A / D</span> : 移動</div>
+                    <div><span class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 text-amber-300">Space</span> : ふんわりジャンプ (変身中2段)</div>
+                    <div><span class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 text-rose-300">Z</span> : 攻撃1 (パンチ / 黄金の剣)</div>
+                    <div><span class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 text-purple-300">X</span> : 攻撃2 (ビーム / 巨大貫通)</div>
+                    <div class="col-span-2"><span class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 text-cyan-300">Shift</span> : チーム全員メタルバン変身! (5秒間)</div>
+                </div>
+            </div>
+
+            <!-- スマホ・画面内タッチボタン -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex justify-between items-center gap-2">
+                <!-- 移動用 -->
+                <div class="flex gap-2">
+                    <button id="btnLeft" class="w-12 h-12 bg-slate-800 active:bg-cyan-600 rounded-xl border border-slate-700 text-xl font-black flex justify-center items-center active:scale-95 transition"><i class="fa-solid fa-arrow-left"></i></button>
+                    <button id="btnRight" class="w-12 h-12 bg-slate-800 active:bg-cyan-600 rounded-xl border border-slate-700 text-xl font-black flex justify-center items-center active:scale-95 transition"><i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+
+                <!-- 変身用 -->
+                <button id="btnTransform" class="px-3 h-12 bg-gradient-to-r from-cyan-500 to-blue-600 active:from-cyan-400 active:to-blue-500 rounded-xl border border-cyan-300/40 text-xs font-black flex flex-col justify-center items-center active:scale-95 transition shadow-lg">
+                    <i class="fa-solid fa-shield-halved text-lg"></i>
+                    <span>変身</span>
+                </button>
+
+                <!-- アクション用 -->
+                <div class="flex gap-1.5">
+                    <button id="btnAttack1" class="w-11 h-11 bg-rose-600 active:bg-rose-500 rounded-xl border border-rose-400 text-xs font-black flex flex-col justify-center items-center active:scale-95 transition">
+                        <span>Z</span>
+                        <span class="text-[9px]">攻撃1</span>
+                    </button>
+                    <button id="btnAttack2" class="w-11 h-11 bg-purple-600 active:bg-purple-500 rounded-xl border border-purple-400 text-xs font-black flex flex-col justify-center items-center active:scale-95 transition">
+                        <span>X</span>
+                        <span class="text-[9px]">ビーム</span>
+                    </button>
+                    <button id="btnJump" class="w-11 h-11 bg-amber-500 active:bg-amber-400 rounded-xl border border-amber-300 text-slate-950 font-black flex flex-col justify-center items-center active:scale-95 transition">
+                        <i class="fa-solid fa-arrow-up"></i>
+                        <span class="text-[9px]">跳躍</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript ロジック -->
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Web Audio API サウンドエンジン
+        let audioCtx = null;
+        let soundEnabled = true;
+        let titleBgmInterval = null;
+        let gameBgmInterval = null;
+        let currentBgmType = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // ページロード時に自動的にBGM再生を開始
+        window.addEventListener('DOMContentLoaded', () => {
+            initTitleAudio();
+        });
+        // ブラウザのAutoplay制約対策（最初のクリック/操作でオーディオコンテキスト再開）
+        window.addEventListener('click', () => {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }, { once: true });
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            const text = document.getElementById('soundText');
+            if (soundEnabled) {
+                icon.className = "fa-solid fa-volume-high";
+                text.innerText = "SOUND ON";
+                if (gameState.state === 'TITLE') playBgm('TITLE');
+                else if (gameState.state === 'PLAYING') playBgm('GAME');
+            } else {
+                icon.className = "fa-solid fa-volume-xmark text-rose-400";
+                text.innerText = "SOUND OFF";
+                stopBgm();
+            }
+        }
+
+        function playTone(freq, type, duration, vol = 0.1) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function playSE(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (type === 'jump') {
+                playTone(300, 'square', 0.15, 0.12);
+                setTimeout(() => playTone(450, 'square', 0.15, 0.1), 50);
+            } else if (type === 'heroJump') {
+                playTone(500, 'triangle', 0.1, 0.15);
+                setTimeout(() => playTone(800, 'triangle', 0.15, 0.12), 40);
+            } else if (type === 'punch') {
+                playTone(150, 'sawtooth', 0.1, 0.2);
+            } else if (type === 'sword') {
+                playTone(800, 'sawtooth', 0.1, 0.15);
+                setTimeout(() => playTone(400, 'sawtooth', 0.1, 0.1), 40);
+            } else if (type === 'beam') {
+                playTone(600, 'sine', 0.2, 0.15);
+                setTimeout(() => playTone(900, 'sine', 0.2, 0.12), 50);
+            } else if (type === 'transform') {
+                [300, 450, 600, 900, 1200].forEach((f, i) => {
+                    setTimeout(() => playTone(f, 'square', 0.2, 0.15), i * 60);
+                });
+            } else if (type === 'hit') {
+                playTone(100, 'sawtooth', 0.25, 0.25);
+            } else if (type === 'enemyDefeat') {
+                playTone(120, 'square', 0.15, 0.2);
+                setTimeout(() => playTone(80, 'square', 0.2, 0.2), 50);
+            } else if (type === 'heal') {
+                [523, 659, 783, 1046].forEach((f, i) => {
+                    setTimeout(() => playTone(f, 'sine', 0.2, 0.15), i * 70);
+                });
+            } else if (type === 'siren') {
+                playTone(800, 'sawtooth', 0.3, 0.1);
+                setTimeout(() => playTone(600, 'sawtooth', 0.3, 0.1), 150);
+            }
+        }
+
+        function stopBgm() {
+            if (titleBgmInterval) clearInterval(titleBgmInterval);
+            if (gameBgmInterval) clearInterval(gameBgmInterval);
+            titleBgmInterval = null;
+            gameBgmInterval = null;
+            currentBgmType = null;
+        }
+
+        function playBgm(type) {
+            if (!soundEnabled || currentBgmType === type) return;
+            stopBgm();
+            currentBgmType = type;
+            initAudio();
+
+            let step = 0;
+            if (type === 'TITLE') {
+                const notes = [261, 329, 392, 523, 392, 329, 261, 329, 293, 349, 440, 587, 440, 349, 293, 349];
+                titleBgmInterval = setInterval(() => {
+                    playTone(notes[step % notes.length], 'triangle', 0.2, 0.08);
+                    step++;
+                }, 180);
+            } else if (type === 'GAME') {
+                const notes = [220, 261, 293, 329, 293, 261, 220, 196, 220, 293, 329, 392, 329, 293];
+                gameBgmInterval = setInterval(() => {
+                    playTone(notes[step % notes.length], 'square', 0.15, 0.06);
+                    step++;
+                }, 140);
+            } else if (type === 'TRANSFORM') {
+                const notes = [440, 554, 659, 880, 659, 554, 440, 880, 554, 659, 880, 1108];
+                gameBgmInterval = setInterval(() => {
+                    playTone(notes[step % notes.length], 'sawtooth', 0.12, 0.08);
+                    step++;
+                }, 110);
+            }
+        }
+
+        function initTitleAudio() {
+            initAudio();
+            if (gameState.state === 'TITLE') playBgm('TITLE');
+            const hint = document.getElementById('audioHint');
+            if (hint) hint.style.display = 'none';
+        }
+
+        // ゲーム状態・定数設定
+        const gameState = {
+            state: 'TITLE', // TITLE, PLAYING, GAMEOVER, CLEAR
+            score: 0,
+            hp: 3,
+            transformGauge: 100,
+            transformTimer: 0,
+            timeStopTimer: 0,
+            slowMotionTimer: 0,
+            invincibleTimer: 0,
+            rushTimer: 1800, // 30秒 (60fps)
+            bossSpawned: false,
+            stageCleared: false,
+            cameraX: 0
+        };
+
+        // キー入力状態
+        const keys = { left: false, right: false, jump: false, attack1: false, attack2: false, transform: false };
+
+        // 3人のヒーロー定義（カラー＆属性）
+        const HERO_COLORS = [
+            { name: "メタルバン", normalColor: "#38bdf8", heroColor: "#e2e8f0", aura: "#38bdf8" }, // 主人公（銀/青）
+            { name: "ファイアーレッド", normalColor: "#f87171", heroColor: "#dc2626", aura: "#f87171" }, // 仲間1（赤）
+            { name: "ガイアイエロー", normalColor: "#facc15", heroColor: "#ca8a04", aura: "#facc15" }   // 仲間2（黄）
+        ];
+
+        // 足場・ステージ地形オブジェクト
+        const platforms = [
+            { x: 0, y: 380, width: 900, height: 70 },
+            { x: 1000, y: 380, width: 800, height: 70 }, // 落とし穴 gap: 900 ~ 1000
+            { x: 1900, y: 380, width: 1200, height: 70 }, // 落とし穴 gap: 1800 ~ 1900
+            { x: 300, y: 280, width: 180, height: 20 },
+            { x: 650, y: 240, width: 160, height: 20 },
+            { x: 1200, y: 270, width: 200, height: 20 },
+            { x: 1550, y: 230, width: 180, height: 20 },
+            { x: 2100, y: 260, width: 220, height: 20 }
+        ];
+
+        // エンティティ群
+        let heroes = [];
+        let enemies = [];
+        let playerBullets = [];
+        let enemyBullets = [];
+        let items = [];
+        let particles = [];
+        let goalFlag = null;
+
+        // クラス定義：ヒーロー（主人公 + 2人のCPU仲間）
+        class Hero {
+            constructor(index, isPlayer = false) {
+                this.index = index;
+                this.isPlayer = isPlayer;
+                this.info = HERO_COLORS[index];
+                this.x = 100 + index * 28;
+                this.y = 300;
+                this.width = 24;
+                this.height = 36;
+                this.vx = 0;
+                this.vy = 0;
+                this.hp = isPlayer ? 3 : 1;
+                this.isAlive = true;
+                this.isGrounded = false;
+                this.jumpCount = 0;
+                this.isTransformed = false;
+                this.facing = 1; // 1: 右, -1: 左
+                this.attackCooldown = 0;
+                this.attackBox = null;
+                this.animFrame = 0;
+                this.jumpPressedLast = false;
+            }
+
+            update() {
+                if (!this.isAlive) return;
+
+                // 変身状態同期
+                if (gameState.transformTimer > 0) {
+                    this.isTransformed = true;
+                } else {
+                    this.isTransformed = false;
+                }
+
+                // 入力制御 (プレイヤー or CPU AI)
+                let moveLeft = false, moveRight = false, doJump = false, doAtt1 = false, doAtt2 = false;
+
+                if (this.isPlayer) {
+                    moveLeft = keys.left;
+                    moveRight = keys.right;
+                    doJump = keys.jump;
+                    doAtt1 = keys.attack1;
+                    doAtt2 = keys.attack2;
+                } else {
+                    // 敵陣（画面右）へ向かって積極的に突撃・進軍
+                    moveRight = true;
+
+                    // 画面内の敵を探して自発的にターゲット攻撃
+                    let nearestEnemy = null;
+                    let minDist = 9999;
+                    for (let e of enemies) {
+                        const dist = e.x - this.x;
+                        if (dist > -50 && dist < 380 && Math.abs(dist) < minDist) {
+                            minDist = Math.abs(dist);
+                            nearestEnemy = e;
+                        }
+                    }
+
+                    if (nearestEnemy) {
+                        this.facing = nearestEnemy.x > this.x ? 1 : -1;
+                        // 敵との距離に応じて近接攻撃・ビームを果敢に放つ
+                        if (minDist < 60) {
+                            if (Math.random() < 0.25) doAtt1 = true;
+                        } else if (minDist < 350) {
+                            if (Math.random() < 0.1) doAtt2 = true;
+                        }
+                    } else {
+                        // 敵がいない間も牽制として時々攻撃
+                        if (Math.random() < 0.03) doAtt1 = true;
+                        if (Math.random() < 0.02) doAtt2 = true;
+                    }
+
+                    // プレイヤーから離れすぎないように画面右端制限
+                    const player = heroes.find(h => h.isPlayer && h.isAlive);
+                    if (player && this.x > player.x + 280) {
+                        moveRight = false;
+                    }
+
+                    // 前方の穴（落とし穴）の自動回避ジャンプ
+                    const checkX = this.x + this.facing * 40;
+                    let groundAhead = false;
+                    for (let p of platforms) {
+                        if (checkX >= p.x && checkX <= p.x + p.width && p.y >= 350) {
+                            groundAhead = true;
+                            break;
+                        }
+                    }
+                    if (!groundAhead && this.isGrounded) {
+                        doJump = true;
+                    }
+
+                    // 壁・段差での引っかかり防止用跳躍
+                    if (this.vx === 0 && moveRight && this.isGrounded) {
+                        doJump = true;
+                    }
+                }
+
+                // 物理演算 & 移動
+                const speed = this.isTransformed ? 5.5 : 3.5;
+                if (moveLeft) { this.vx = -speed; this.facing = -1; }
+                else if (moveRight) { this.vx = speed; this.facing = 1; }
+                else { this.vx *= 0.7; }
+
+                // ふんわりジャンプ処理（初速 -9.0 / 重力 0.15 で1秒間の上昇と1秒間の落下を実現）
+                if (doJump && !this.jumpPressedLast) {
+                    const maxJumps = this.isTransformed ? 2 : 1;
+                    if (this.isGrounded || this.jumpCount < maxJumps) {
+                        this.vy = -9.0;
+                        this.jumpCount++;
+                        this.isGrounded = false;
+                        if (this.isPlayer) playSE(this.isTransformed ? 'heroJump' : 'jump');
+                    }
+                }
+                this.jumpPressedLast = doJump;
+
+                // 重力（低重力化）
+                this.vy += 0.15;
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 地形・足場当たり判定
+                this.isGrounded = false;
+                for (let p of platforms) {
+                    if (this.x + this.width > p.x && this.x < p.x + p.width) {
+                        if (this.y + this.height >= p.y && this.y + this.height <= p.y + p.height && this.vy >= 0) {
+                            this.y = p.y - this.height;
+                            this.vy = 0;
+                            this.isGrounded = true;
+                            this.jumpCount = 0;
+                        }
+                    }
+                }
+
+                // 落下死（落とし穴）
+                if (this.y > 450) {
+                    this.isAlive = false;
+                    createHitParticles(this.x + 12, 400);
+                    if (this.isPlayer) {
+                        gameState.hp = 0;
+                        triggerGameOver();
+                    }
+                }
+
+                // 攻撃1 (近接パンチ/剣)
+                if (this.attackCooldown > 0) this.attackCooldown--;
+                if (doAtt1 && this.attackCooldown === 0) {
+                    this.attackCooldown = this.isTransformed ? 12 : 20;
+                    const range = this.isTransformed ? 60 : 35;
+                    this.attackBox = {
+                        x: this.facing === 1 ? this.x + this.width : this.x - range,
+                        y: this.y - 5,
+                        width: range,
+                        height: this.height + 10,
+                        duration: 8,
+                        damage: this.isTransformed ? 3 : 1
+                    };
+                    if (this.isPlayer) playSE(this.isTransformed ? 'sword' : 'punch');
+                }
+
+                if (this.attackBox) {
+                    this.attackBox.duration--;
+                    if (this.attackBox.duration <= 0) this.attackBox = null;
+                }
+
+                // 攻撃2 (ビーム発射)
+                if (doAtt2 && this.attackCooldown === 0) {
+                    this.attackCooldown = 25;
+                    const bWidth = this.isTransformed ? 28 : 14;
+                    const bHeight = this.isTransformed ? 14 : 8;
+                    playerBullets.push({
+                        x: this.facing === 1 ? this.x + this.width : this.x - bWidth,
+                        y: this.y + 10,
+                        vx: this.facing * (this.isTransformed ? 12 : 8),
+                        vy: 0,
+                        width: bWidth,
+                        height: bHeight,
+                        isTransformed: this.isTransformed,
+                        damage: this.isTransformed ? 4 : 2
+                    });
+                    if (this.isPlayer) playSE('beam');
+                }
+
+                this.animFrame++;
+            }
+
+            draw() {
+                if (!this.isAlive) return;
+
+                ctx.save();
+
+                // プレイヤーキャラクターの頭上に "PLAY" 矢印インジケーターを描画
+                if (this.isPlayer) {
+                    const bounceY = Math.sin(Date.now() / 150) * 3;
+                    ctx.fillStyle = '#facc15'; // 鮮やかなイエロー
+                    ctx.font = '900 12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('PLAY', this.x + this.width / 2, this.y - 16 + bounceY);
+
+                    // 逆三角形の矢印アイコン
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.width / 2 - 6, this.y - 12 + bounceY);
+                    ctx.lineTo(this.x + this.width / 2 + 6, this.y - 12 + bounceY);
+                    ctx.lineTo(this.x + this.width / 2, this.y - 4 + bounceY);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // 無敵時間中の点滅表示 (プレイヤーのみ)
+                if (this.isPlayer && gameState.invincibleTimer > 0 && Math.floor(gameState.invincibleTimer / 4) % 2 === 0) {
+                    ctx.globalAlpha = 0.3;
+                }
+
+                // 変身中の光のオーラ描画
+                if (this.isTransformed) {
+                    ctx.shadowColor = this.info.aura;
+                    ctx.shadowBlur = 15;
+                }
+
+                // ドット絵ヒーロー本体
+                const color = this.isTransformed ? this.info.heroColor : this.info.normalColor;
+                ctx.fillStyle = color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+
+                // バイザー/目
+                ctx.fillStyle = this.isTransformed ? '#38bdf8' : '#0f172a';
+                const eyeX = this.facing === 1 ? this.x + 14 : this.x + 2;
+                ctx.fillRect(eyeX, this.y + 6, 8, 6);
+
+                // マント/ベルト
+                ctx.fillStyle = this.isTransformed ? '#f59e0b' : '#64748b';
+                ctx.fillRect(this.x + 2, this.y + 20, this.width - 4, 4);
+
+                // 攻撃モーショングラフィック
+                if (this.attackBox) {
+                    ctx.fillStyle = this.isTransformed ? '#fef08a' : '#f87171';
+                    ctx.fillRect(this.attackBox.x, this.attackBox.y, this.attackBox.width, this.attackBox.height);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // クラス定義：敵（雑魚・飛行・ボス）
+        class Enemy {
+            constructor(x, y, type = 'normal') {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'normal', 'fast', 'flying', 'boss'
+                this.width = type === 'boss' ? 70 : 26;
+                this.height = type === 'boss' ? 90 : 36;
+                this.hp = type === 'boss' ? 35 : (type === 'fast' ? 1 : 2);
+                this.speed = type === 'fast' ? 2.5 : 1.2;
+                this.vx = -this.speed;
+                this.vy = 0;
+                this.facing = -1; // -1: 左, 1: 右
+                this.shootTimer = 0;
+                this.color = type === 'boss' ? '#e11d48' : (type === 'flying' ? '#c084fc' : (type === 'fast' ? '#f97316' : '#ef4444'));
+            }
+
+            update() {
+                if (gameState.timeStopTimer > 0) return; // 変身タイムストップ中は停止
+
+                // 生きているプレイヤーを取得
+                const player = heroes.find(h => h.isPlayer && h.isAlive);
+
+                if (this.type === 'flying') {
+                    // 飛行型の敵：プレイヤーのX座標に滑らかに追従
+                    if (player) {
+                        if (this.x < player.x - 20) this.vx = 1.5;
+                        else if (this.x > player.x + 20) this.vx = -1.5;
+                    }
+                    this.facing = this.vx >= 0 ? 1 : -1;
+                    this.x += this.vx;
+                    this.y += Math.sin(Date.now() / 300) * 0.8;
+                    this.shootTimer++;
+                    if (this.shootTimer > 110) {
+                        this.shootTimer = 0;
+                        // プレイヤーを狙って球を打ち下ろす
+                        if (player) {
+                            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                            enemyBullets.push({
+                                x: this.x,
+                                y: this.y + 15,
+                                vx: Math.cos(angle) * 4,
+                                vy: Math.sin(angle) * 4,
+                                radius: 6
+                            });
+                        }
+                    }
+                } else if (this.type === 'boss') {
+                    if (player) {
+                        if (this.x < player.x + 150) this.vx = 1.0;
+                        else if (this.x > player.x + 250) this.vx = -1.0;
+                        else this.vx = 0;
+                    }
+                    this.facing = -1;
+                    this.x += this.vx;
+                    this.shootTimer++;
+                    if (this.shootTimer > 80) {
+                        this.shootTimer = 0;
+                        // 3方向弾幕
+                        [-0.3, 0, 0.3].forEach(angleOffset => {
+                            enemyBullets.push({
+                                x: this.x,
+                                y: this.y + 30,
+                                vx: -5,
+                                vy: Math.sin(angleOffset) * 4,
+                                radius: 8
+                            });
+                        });
+                    }
+                } else {
+                    // 歩行系：プレイヤーの位置を目指して左右に移動
+                    if (player) {
+                        if (this.x < player.x - 10) {
+                            this.vx = this.speed;
+                            this.facing = 1;
+                        } else if (this.x > player.x + 10) {
+                            this.vx = -this.speed;
+                            this.facing = -1;
+                        }
+                    }
+
+                    this.vy += 0.35;
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    for (let p of platforms) {
+                        if (this.x + this.width > p.x && this.x < p.x + p.width) {
+                            if (this.y + this.height >= p.y && this.y + this.height <= p.y + p.height && this.vy >= 0) {
+                                this.y = p.y - this.height;
+                                this.vy = 0;
+                            }
+                        }
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+
+                // 敵の目（進行方向を向く）
+                ctx.fillStyle = '#fef08a';
+                const eyeX = this.facing === 1 ? this.x + this.width - 10 : this.x + 4;
+                ctx.fillRect(eyeX, this.y + 8, 6, 6);
+                if (this.type === 'boss') {
+                    // ボスのHPバー
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(this.x, this.y - 12, this.width, 6);
+                    ctx.fillStyle = '#22c55e';
+                    ctx.fillRect(this.x, this.y - 12, (this.width * this.hp) / 35, 6);
+                }
+                ctx.restore();
+            }
+        }
+
+        // 被弾処理 (0.5秒スローモーション ＆ 5秒無敵 ＆ エフェクト)
+        function onPlayerHit() {
+            if (gameState.invincibleTimer > 0) return;
+            gameState.hp--;
+            playSE('hit');
+            gameState.slowMotionTimer = 30; // 0.5秒間スローモーション (60fps * 0.5)
+            gameState.invincibleTimer = 300; // 5秒間無敵 (60fps * 5)
+            
+            const player = heroes[0];
+            if (player) createHitParticles(player.x + 12, player.y + 18);
+
+            if (gameState.hp <= 0) {
+                triggerGameOver();
+            }
+        }
+
+        // ゲーム初期化
+        function initGame() {
+            gameState.state = 'PLAYING';
+            gameState.score = 0;
+            gameState.hp = 3;
+            gameState.transformGauge = 100;
+            gameState.transformTimer = 0;
+            gameState.timeStopTimer = 0;
+            gameState.slowMotionTimer = 0;
+            gameState.invincibleTimer = 0;
+            gameState.rushTimer = 1800; // 30秒カウントダウン
+            gameState.bossSpawned = false;
+            gameState.stageCleared = false;
+            gameState.cameraX = 0;
+
+            // 3人のヒーロー生成（先頭 index:0 がプレイヤー）
+            heroes = [];
+            for (let i = 0; i < 3; i++) {
+                heroes.push(new Hero(i, i === 0));
+            }
+
+            enemies = [];
+            playerBullets = [];
+            enemyBullets = [];
+            items = [];
+            particles = [];
+            goalFlag = null;
+
+            document.getElementById('titleOverlay').classList.add('hidden');
+            document.getElementById('overlay').classList.add('hidden');
+
+            playBgm('GAME');
+        }
+
+        function startGame() {
+            initGame();
+        }
+
+        function resetGame() {
+            initGame();
+        }
+
+        function returnToTitle() {
+            gameState.state = 'TITLE';
+            document.getElementById('overlay').classList.add('hidden');
+            document.getElementById('titleOverlay').classList.remove('hidden');
+            playBgm('TITLE');
+        }
+
+        function triggerGameOver() {
+            gameState.state = 'GAMEOVER';
+            stopBgm();
+            playSE('hit');
+            document.getElementById('overlayTitle').innerText = "GAME OVER";
+            document.getElementById('overlayTitle').className = "text-3xl sm:text-5xl font-extrabold mb-2 text-rose-500 pixel-font tracking-wider";
+            document.getElementById('overlayMessage').innerText = "メタルバンが倒れてしまった！もう一度挑戦しよう！";
+            document.getElementById('finalScore').innerText = gameState.score;
+            document.getElementById('overlay').classList.remove('hidden');
+        }
+
+        function triggerStageClear() {
+            gameState.state = 'CLEAR';
+            stopBgm();
+            playSE('heal');
+            document.getElementById('overlayTitle').innerText = "STAGE CLEAR!";
+            document.getElementById('overlayTitle').className = "text-3xl sm:text-5xl font-extrabold mb-2 text-cyan-400 pixel-font tracking-wider";
+            document.getElementById('overlayMessage').innerText = "3人のヒーローが銀河の平和を守り抜いた！";
+            document.getElementById('finalScore').innerText = gameState.score;
+            document.getElementById('overlay').classList.remove('hidden');
+        }
+
+        // メイン更新ループ
+        let lastTime = 0;
+        let spawnEnemyTimer = 0;
+
+        function update(dt) {
+            if (gameState.state !== 'PLAYING') return;
+
+            // タイムスケール（被弾時の0.5秒スローモーション）
+            let timeScale = 1.0;
+            if (gameState.slowMotionTimer > 0) {
+                gameState.slowMotionTimer--;
+                timeScale = 0.5;
+            }
+
+            if (gameState.invincibleTimer > 0) gameState.invincibleTimer--;
+
+            // 変身＆タイムストップ処理
+            if (gameState.timeStopTimer > 0) gameState.timeStopTimer--;
+
+            if (gameState.transformTimer > 0) {
+                gameState.transformTimer--;
+                if (gameState.transformTimer === 0) {
+                    playBgm('GAME'); // 通常BGM復帰
+                }
+            }
+
+            // --- 敵の自動スポーン（生成）ロジック ---
+            spawnEnemyTimer++;
+            if (spawnEnemyTimer > 100) { // 約1.6秒ごとに1体生成
+                spawnEnemyTimer = 0;
+                const playerX = heroes[0] ? heroes[0].x : gameState.cameraX + 200;
+                const spawnX = playerX + 450 + Math.random() * 100; // 画面右外から出現
+                
+                const rand = Math.random();
+                if (rand < 0.5) {
+                    enemies.push(new Enemy(spawnX, 300, 'normal'));
+                } else if (rand < 0.8) {
+                    enemies.push(new Enemy(spawnX, 300, 'fast'));
+                } else {
+                    enemies.push(new Enemy(spawnX, 200, 'flying'));
+                }
+            }
+
+            // ラッシュ（大量発生）カウントダウン処理
+            if (gameState.rushTimer > 0) {
+                gameState.rushTimer--;
+                if (gameState.rushTimer === 0) {
+                    // ラッシュ発生！6体の敵が一気に押しかける
+                    playSE('siren');
+                    const playerX = heroes[0] ? heroes[0].x : gameState.cameraX + 200;
+                    for (let i = 0; i < 6; i++) {
+                        setTimeout(() => {
+                            const spawnX = playerX + 400 + i * 35;
+                            const type = i % 2 === 0 ? 'normal' : 'fast';
+                            enemies.push(new Enemy(spawnX, 300, type));
+                        }, i * 150);
+                    }
+                    gameState.rushTimer = 1800; // カウントリセット (30秒)
+                }
+            }
+
+            // ボス出現ロジック（スコア1500点以上でボス戦突入）
+            if (gameState.score >= 1500 && !gameState.bossSpawned) {
+                gameState.bossSpawned = true;
+                const playerX = heroes[0] ? heroes[0].x : gameState.cameraX + 200;
+                enemies.push(new Enemy(playerX + 500, 260, 'boss'));
+                playSE('siren');
+            }
+
+            // カメラ追従 (プレイヤーのX座標)
+            const player = heroes[0];
+            if (player) {
+                gameState.cameraX = Math.max(0, player.x - 200);
+            }
+
+            // 変身発動コマンド (Shift キー or タッチボタン)
+            if (keys.transform && gameState.transformGauge >= 100 && gameState.transformTimer === 0) {
+                gameState.transformGauge = 0;
+                gameState.transformTimer = 300; // 5秒間 (60fps * 5)
+                gameState.timeStopTimer = 70;   // 1.2秒タイムストップ
+                playSE('transform');
+                playBgm('TRANSFORM');
+
+                // 変身粒子エフェクト
+                if (player) {
+                    for (let i = 0; i < 40; i++) {
+                        particles.push({
+                            x: player.x + 12,
+                            y: player.y + 18,
+                            vx: (Math.random() - 0.5) * 12,
+                            vy: (Math.random() - 0.5) * 12,
+                            life: 30,
+                            color: Math.random() < 0.5 ? '#e2e8f0' : '#38bdf8'
+                        });
+                    }
+                }
+            }
+
+            // ヒーロー一覧更新
+            heroes.forEach(h => h.update());
+
+            // 敵の更新＆当たり判定
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                e.update();
+
+                // 生きているヒーロー全員との判定
+                heroes.filter(h => h.isAlive).forEach(h => {
+                    // ヒーローの近接攻撃との当たり判定
+                    if (h.attackBox) {
+                        if (h.attackBox.x < e.x + e.width && h.attackBox.x + h.attackBox.width > e.x &&
+                            h.attackBox.y < e.y + e.height && h.attackBox.y + h.attackBox.height > e.y) {
+                            e.hp -= h.attackBox.damage;
+                            createHitParticles(e.x + e.width / 2, e.y + e.height / 2);
+                        }
+                    }
+
+                    // 踏みつけ判定
+                    if (h.vy > 0 && h.x + h.width > e.x && h.x < e.x + e.width &&
+                        h.y + h.height >= e.y && h.y + h.height <= e.y + 15) {
+                        e.hp -= 2;
+                        h.vy = -7; // バウンド跳躍
+                        if (h.isPlayer) playSE('jump');
+                        createHitParticles(e.x + e.width / 2, e.y);
+                    }
+
+                    // 敵との接触判定 (プレイヤー / 仲間共通)
+                    if (h.x < e.x + e.width && h.x + h.width > e.x &&
+                        h.y < e.y + e.height && h.y + h.height > e.y) {
+                        if (h.isPlayer) {
+                            if (gameState.invincibleTimer === 0) onPlayerHit();
+                        } else {
+                            // 仲間ヒーローはダメージで勝手に死亡
+                            h.isAlive = false;
+                            playSE('enemyDefeat');
+                            createHitParticles(h.x + 12, h.y + 18);
+                        }
+                    }
+                });
+
+                // 撃破判定
+                if (e.hp <= 0) {
+                    playSE('enemyDefeat');
+                    gameState.score += e.type === 'boss' ? 500 : 100;
+                    gameState.transformGauge = Math.min(100, gameState.transformGauge + 20);
+
+                    // 10%の確率で回復アイテムドロップ
+                    if (Math.random() < 0.10) {
+                        items.push({ x: e.x, y: e.y, width: 18, height: 18 });
+                    }
+
+                    // ボス撃破でゴールフラグ出現
+                    if (e.type === 'boss') {
+                        goalFlag = { x: e.x + 200, y: 280, width: 30, height: 100 };
+                    }
+
+                    enemies.splice(i, 1);
+                }
+            }
+
+            // プレイヤー弾 (ビーム) の移動 & 敵へのヒット判定
+            for (let i = playerBullets.length - 1; i >= 0; i--) {
+                const b = playerBullets[i];
+                b.x += b.vx;
+
+                let bulletHit = false;
+                for (let e of enemies) {
+                    if (b.x < e.x + e.width && b.x + b.width > e.x &&
+                        b.y < e.y + e.height && b.y + b.height > e.y) {
+                        e.hp -= b.damage;
+                        createHitParticles(e.x + e.width / 2, e.y + e.height / 2);
+                        if (!b.isTransformed) { // 変身ビーム以外は1ヒットで消滅（変身ビームは貫通）
+                            bulletHit = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (bulletHit || b.x < gameState.cameraX - 50 || b.x > gameState.cameraX + 900) {
+                    playerBullets.splice(i, 1);
+                }
+            }
+
+            // 敵弾更新＆各ヒーローへの被弾判定
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                const eb = enemyBullets[i];
+                eb.x += eb.vx;
+                eb.y += eb.vy;
+
+                let bulletRemoved = false;
+                for (let h of heroes.filter(h => h.isAlive)) {
+                    if (Math.hypot(eb.x - (h.x + 12), eb.y - (h.y + 18)) < eb.radius + 12) {
+                        if (h.isPlayer) {
+                            if (gameState.invincibleTimer === 0) {
+                                onPlayerHit();
+                                bulletRemoved = true;
+                            }
+                        } else {
+                            h.isAlive = false;
+                            playSE('enemyDefeat');
+                            createHitParticles(h.x + 12, h.y + 18);
+                            bulletRemoved = true;
+                        }
+                        if (bulletRemoved) break;
+                    }
+                }
+
+                if (bulletRemoved) {
+                    enemyBullets.splice(i, 1);
+                    continue;
+                }
+
+                if (eb.x < gameState.cameraX - 50 || eb.x > gameState.cameraX + 900) {
+                    enemyBullets.splice(i, 1);
+                }
+            }
+
+            // 回復アイテム判定
+            for (let i = items.length - 1; i >= 0; i--) {
+                const it = items[i];
+                if (player && player.x < it.x + it.width && player.x + player.width > it.x &&
+                    player.y < it.y + it.height && player.y + player.height > it.y) {
+                    gameState.hp = 3; // 全回復
+                    playSE('heal');
+                    items.splice(i, 1);
+                }
+            }
+
+            // ゴールフラグ判定
+            if (goalFlag && player) {
+                if (player.x < goalFlag.x + goalFlag.width && player.x + player.width > goalFlag.x &&
+                    player.y < goalFlag.y + goalFlag.height && player.y + player.height > goalFlag.y) {
+                    triggerStageClear();
+                }
+            }
+
+            // 粒子更新
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function createHitParticles(x, y) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 20,
+                    color: Math.random() < 0.5 ? '#f87171' : '#fb923c'
+                });
+            }
+        }
+
+        // 描画メインループ
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            // カメラ追従変換
+            ctx.translate(-gameState.cameraX, 0);
+
+            // 背景描画（遠景・グリッド）
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(gameState.cameraX, 0, canvas.width, canvas.height);
+
+            // 地形・足場描画
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            platforms.forEach(p => {
+                ctx.fillRect(p.x, p.y, p.width, p.height);
+                ctx.strokeRect(p.x, p.y, p.width, p.height);
+            });
+
+            // ゴールフラグ
+            if (goalFlag) {
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(goalFlag.x, goalFlag.y, 6, goalFlag.height);
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.moveTo(goalFlag.x + 6, goalFlag.y);
+                ctx.lineTo(goalFlag.x + 35, goalFlag.y + 15);
+                ctx.lineTo(goalFlag.x + 6, goalFlag.y + 30);
+                ctx.fill();
+            }
+
+            // 回復アイテム
+            ctx.fillStyle = '#22c55e';
+            items.forEach(it => {
+                ctx.fillRect(it.x, it.y, it.width, it.height);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText("+", it.x + 4, it.y + 14);
+            });
+
+            // ヒーロー（3人）描画
+            heroes.forEach(h => h.draw());
+
+            // 敵描画
+            enemies.forEach(e => e.draw());
+
+            // プレイヤービーム
+            playerBullets.forEach(b => {
+                ctx.fillStyle = b.isTransformed ? '#fef08a' : '#38bdf8';
+                ctx.fillRect(b.x, b.y, b.width, b.height);
+            });
+
+            // 敵弾
+            ctx.fillStyle = '#f87171';
+            enemyBullets.forEach(eb => {
+                ctx.beginPath();
+                ctx.arc(eb.x, eb.y, eb.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 粒子描画
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 3, 3);
+            });
+
+            ctx.restore();
+
+            // 変身タイムストップ時演出 (テロップカットイン)
+            if (gameState.timeStopTimer > 0) {
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.6)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#f59e0b';
+                ctx.font = '900 32px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText("METALBAN TRANSFORM!", canvas.width / 2, canvas.height / 2);
+            }
+
+            // HUD (画面上部UI) 描画
+            drawHUD();
+        }
+
+        // HUD (HP / ゲージ / スコア / タイマー) 描画
+        function drawHUD() {
+            if (gameState.state !== 'PLAYING') return;
+
+            // HP ハートマーク表示
+            ctx.fillStyle = '#f43f5e';
+            for (let i = 0; i < 3; i++) {
+                if (i < gameState.hp) {
+                    ctx.fillText("❤️", 20 + i * 28, 32);
+                } else {
+                    ctx.fillStyle = '#475569';
+                    ctx.fillText("🖤", 20 + i * 28, 32);
+                }
+            }
+
+            // 変身ゲージ
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(120, 16, 120, 18);
+            ctx.fillStyle = gameState.transformGauge >= 100 ? '#38bdf8' : '#e2e8f0';
+            ctx.fillRect(122, 18, (116 * gameState.transformGauge) / 100, 14);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(gameState.transformGauge >= 100 ? "METALBAN OK!" : "GAUGE", 180, 29);
+
+            // スコア
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 14px monospace';
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillText(`SCORE: ${gameState.score}`, 260, 30);
+
+            // ラッシュカウントダウン
+            const rushSec = Math.ceil(gameState.rushTimer / 60);
+            ctx.fillStyle = rushSec <= 5 ? '#f87171' : '#cbd5e1';
+            ctx.fillText(`RUSH: ${rushSec}s`, 420, 30);
+        }
+
+        // メインゲームループ
+        function loop(timestamp) {
+            const dt = timestamp - lastTime;
+            lastTime = timestamp;
+
+            update(dt);
+            draw();
+
+            requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
+
+        // イベントリスナー (キーボード)
+        window.addEventListener('keydown', e => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if (e.code === 'Space') keys.jump = true;
+            if (e.code === 'KeyZ') keys.attack1 = true;
+            if (e.code === 'KeyX') keys.attack2 = true;
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.transform = true;
+        });
+
+        window.addEventListener('keyup', e => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+            if (e.code === 'Space') keys.jump = false;
+            if (e.code === 'KeyZ') keys.attack1 = false;
+            if (e.code === 'KeyX') keys.attack2 = false;
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.transform = false;
+        });
+
+        // 画面タッチボタンイベント束縛
+        function bindTouchBtn(id, keyName) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const start = (e) => { e.preventDefault(); keys[keyName] = true; initAudio(); };
+            const end = (e) => { e.preventDefault(); keys[keyName] = false; };
+            btn.addEventListener('touchstart', start);
+            btn.addEventListener('touchend', end);
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+        }
+
+        bindTouchBtn('btnLeft', 'left');
+        bindTouchBtn('btnRight', 'right');
+        bindTouchBtn('btnJump', 'jump');
+        bindTouchBtn('btnAttack1', 'attack1');
+        bindTouchBtn('btnAttack2', 'attack2');
+        bindTouchBtn('btnTransform', 'transform');
+
+        // ソースコード1クリックダウンロード機能
+        function downloadSourceCode() {
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'metalban_hero_game.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
