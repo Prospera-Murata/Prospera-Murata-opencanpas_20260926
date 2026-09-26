@@ -1370,11 +1370,19 @@
         }
 
         document.getElementById('btn-start').addEventListener('click', () => {
+            console.log('① STARTクリック');
+
             audio.init();
+            console.log('② audio.init OK');
+
             initThree();
+            console.log('③ initThree OK');
+
             animate();
+            console.log('④ animate OK');
 
             document.getElementById('start-screen').classList.add('hidden');
+            console.log('⑤ start-screen hidden');
         });
 
         document.getElementById('btn-action').addEventListener('click', () => {
